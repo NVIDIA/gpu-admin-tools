@@ -61,7 +61,7 @@ if is_linux:
 # By default use /dev/mem for MMIO, can be changed with --mmio-access-type sysfs
 mmio_access_type = "devmem"
 
-VERSION = "v2024.01.12o"
+VERSION = "v2024.01.19o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -1912,6 +1912,10 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
     def is_nvlink_supported(self):
         return self.nvlink is not None
 
+    @property
+    def has_pdi(self):
+        return False
+
     def is_gpu(self):
         return False
 
@@ -2072,6 +2076,12 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
                 raise GpuError("Timed out polling register %s (%s), value %s & %s is still 0. Timeout %f secs" % (name, hex(offset), hex(reg), hex(mask), timeout))
             if sleep_interval > 0.0:
                 time.sleep(sleep_interval)
+
+    def get_pdi(self):
+        assert self.has_pdi
+        pdi = int(self.read(0x820344))
+        pdi = int(self.read(0x820348)) << 32 | pdi
+        return pdi
 
 
     def block_nvlinks(self, nvlinks):
@@ -3441,6 +3451,10 @@ class NvSwitch(NvidiaDevice):
     def has_fsp(self):
         return self.is_laguna_plus
 
+    @property
+    def has_pdi(self):
+        return self.is_laguna_plus
+
     def _is_read_good(self, reg, data):
         return data >> 16 != 0xbadf
 
@@ -3836,6 +3850,10 @@ class Gpu(NvidiaDevice):
     @property
     def has_fsp(self):
         return self.is_hopper_plus
+
+    @property
+    def has_pdi(self):
+        return self.is_ampere_plus
 
     def is_gpu(self):
         return True
@@ -4799,7 +4817,7 @@ def create_args():
                       help="On Linux, specify whether to do MMIO through /dev/mem or /sys/bus/pci/devices/.../resourceN")
 
     argp.add_option("--recover-broken-gpu", action='store_true', default=False,
-                      help="""Attempt recovering a broken GPU (unresposnive config space or MMIO) by performing an SBR. If the GPU is
+                      help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
 broken from the beginning and hence correct config space wasn't saved then
 reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
     argp.add_option("--reset-with-sbr", action='store_true', default=False,
@@ -4830,6 +4848,8 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                     help="Reset the GPU after switching CC mode such that it is activated immediately.")
     argp.add_option("--test-cc-mode-switch", action='store_true', default=False,
                     help="Test switching CC modes.")
+    argp.add_option("--query-l4-serial-number", action='store_true', default=False,
+                    help="Query the L4 certificate serial number without the MSB. The MSB could be either 0x41 or 0x40 based on the RoT returning the certificate chain.")
     argp.add_option("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
     argp.add_option("--clear-memory", action='store_true', default=False,
                       help="Clear the contents of the GPU memory. Supported on Pascal+ GPUs. Assumes the GPU has been reset with SBR prior to this operation and can be comined with --reset-with-sbr if not.")
@@ -4854,8 +4874,8 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                     help="Check that GPUs are able to perform DMA to all/most of available system memory.")
     argp.add_option("--test-pcie-p2p", action='store_true', default=False,
                     help="Check that all GPUs are able to perform DMA to each other.")
-    argp.add_option("--read-sysmem-pa", type='int', help="""Use GPU's DMA to read 32-bits from the specified sysmem phyiscal address""")
-    argp.add_option("--write-sysmem-pa", type='int', nargs=2, help="""Use GPU's DMA to write specified 32-bits to the specified sysmem phyiscal address""")
+    argp.add_option("--read-sysmem-pa", type='int', help="""Use GPU's DMA to read 32-bits from the specified sysmem physical address""")
+    argp.add_option("--write-sysmem-pa", type='int', nargs=2, help="""Use GPU's DMA to write specified 32-bits to the specified sysmem physical address""")
     argp.add_option("--read-config-space", type='int', nargs=1, help="""Read 32-bits from device's config space at specified offset""")
     argp.add_option("--write-config-space", type='int', nargs=2, help="""Write 32-bit to device's config space at specified offset""")
     argp.add_option("--read-bar0", type='int', nargs=1, help="""Read 32-bits from GPU BAR0 at specified offset""")
@@ -5105,6 +5125,12 @@ def main():
             for name, value in prc_knobs:
                 debug(f"  {name} = {value}")
             raise
+
+    if opts.query_l4_serial_number:
+        if not gpu.has_pdi:
+            error(f"Querying L4 serial number not supported on {gpu}")
+            sys.exit(1)
+        print(f"L4 serial number: {gpu.get_pdi():#x}")
 
     if opts.clear_memory:
         if gpu.is_memory_clear_supported:

@@ -1,6 +1,6 @@
-# NVIDIA ADMIN GPU Tools
+# NVIDIA GPU Admin Tools
 
-This utility is used for various configuration including the Confidential Computing modes of supported GPUs as well as some debug/test tasks. It is designed to be run as a priveleged python3 command.
+This utility is used for various configuration including the Confidential Computing modes of supported GPUs as well as some debug/test tasks. It is designed to be run as a privileged python3 command.
 
 Supported CC modes are:
 
@@ -51,7 +51,7 @@ Options:
   --mmio-access-type=MMIO_ACCESS_TYPE
                         On Linux, specify whether to do MMIO through /dev/mem
                         or /sys/bus/pci/devices/.../resourceN
-  --recover-broken-gpu  Attempt recovering a broken GPU (unresposnive config
+  --recover-broken-gpu  Attempt recovering a broken GPU (unresponsive config
                         space or MMIO) by performing an SBR. If the GPU is
                         broken from the beginning and hence correct config
                         space wasn't saved then reenumarate it in the OS by
@@ -113,10 +113,10 @@ Options:
                         other.
   --read-sysmem-pa=READ_SYSMEM_PA
                         Use GPU's DMA to read 32-bits from the specified
-                        sysmem phyiscal address
+                        sysmem physical address
   --write-sysmem-pa=WRITE_SYSMEM_PA
                         Use GPU's DMA to write specified 32-bits to the
-                        specified sysmem phyiscal address
+                        specified sysmem physical address
   --read-config-space=READ_CONFIG_SPACE
                         Read 32-bits from device's config space at specified
                         offset
