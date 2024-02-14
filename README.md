@@ -16,9 +16,9 @@ Supported CC modes are:
   sudo apt install patchelf python3-pip
   ```
 ## Most Commonly Used Examples
-##### Query the CC mode of all H100s in the system
+##### Query the CC mode of the first H100 in the system
 ` sudo python3 ./nvidia_gpu_tools.py --gpu-name=H100 --query-cc-mode`
-##### Enable CC-On mode of all H100s in the system
+##### Enable CC-On mode on the first H100 in the system
 ` sudo python3 ./nvidia_gpu_tools.py --gpu-name=H100 --set-cc-mode=on --reset-after-cc-mode-switch `
 ##### Disable CC mode on a specific H100 in the system
 ` sudo python3 ./nvidia_gpu_tools.py --gpu-bdf=45:00.0 --set-cc-mode=off --reset-after-cc-mode-switch`
@@ -33,7 +33,7 @@ Supported CC modes are:
   ```bash
   sudo python3 nvidia_gpu_tools.py --help
 
-NVIDIA GPU Tools version v2024.01.11o
+NVIDIA GPU Tools version v2024.01.19o
 Command line arguments: ['./nvidia_gpu_tools.py', '--help']
 Usage: nvidia_gpu_tools.py [options]
 
@@ -85,6 +85,10 @@ Options:
                         activated immediately.
   --test-cc-mode-switch
                         Test switching CC modes.
+  --query-l4-serial-number
+                        Query the L4 certificate serial number without the
+                        MSB. The MSB could be either 0x41 or 0x40 based on the
+                        RoT returning the certificate chain.
   --query-module-name   Query the module name (aka physical ID and module ID).
                         Supported only on H100 SXM and NVSwitch_gen3
   --clear-memory        Clear the contents of the GPU memory. Supported on

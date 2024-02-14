@@ -61,7 +61,7 @@ if is_linux:
 # By default use /dev/mem for MMIO, can be changed with --mmio-access-type sysfs
 mmio_access_type = "devmem"
 
-VERSION = "v2024.01.19o"
+VERSION = "v2024.02.14o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -1446,7 +1446,7 @@ class PciDevice(Device):
 
     def _restore_cfg_space(self):
         assert self.saved_cfg_space
-        for offset in GPU_CFG_SPACE_OFFSETS:
+        for offset in sorted(self.saved_cfg_space):
             old = self.config.read32(offset)
             new = self.saved_cfg_space[offset]
             #debug("%s restoring cfg space %s = %s to %s", self, hex(offset), hex(old), hex(new))
