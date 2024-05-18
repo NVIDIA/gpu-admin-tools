@@ -4146,15 +4146,24 @@ class Gpu(NvidiaDevice):
 
         self._init_fsp_rpc()
 
-        ppcie_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
-        if ppcie_knob_value == 1:
-            info(f"PPCIe is currently active. It will be turned off before switching to CC.")
+        ppcie_supported = True
+        try:
+            ppcie_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
+            if ppcie_knob_value == 1:
+                info(f"{self} has PPCIe enabled. It will be turned off before switching to CC.")
+        except FspRpcError as err:
+            if err.is_invalid_knob_error:
+                debug(f"{self} has older FW that doesn't support PPCIE.")
+                ppcie_supported = False
+            else:
+                raise
 
         if cc_mode == 0x1:
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_4.value, 0x0)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_34.value, 0x0)
-            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, 0x0)
+            if ppcie_supported:
+                self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, 0x0)
 
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
