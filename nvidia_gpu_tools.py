@@ -61,18 +61,24 @@ if is_linux:
 # By default use /dev/mem for MMIO, can be changed with --mmio-access-type sysfs
 mmio_access_type = "devmem"
 
-VERSION = "v2024.02.14o"
+bar0_from_file = None
+
+VERSION = "v2024.05.17o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
 def sysfs_find_parent(device):
-    device = os.path.basename(device)
-    for device_dir in os.listdir(SYS_DEVICES):
-        dev_path = os.path.join(SYS_DEVICES, device_dir)
-        for f in os.listdir(dev_path):
-            if f == device:
-                return dev_path
-    return None
+    # Get a sysfs path with PCIe topology like:
+    # /sys/devices/pci0000:00/0000:00:0d.0/0000:05:00.0/0000:06:00.0/0000:07:00.0
+    topo_path = os.path.realpath(device)
+
+    parent = os.path.dirname(topo_path)
+
+    # No more parents once we reach /sys/devices/pci*
+    if os.path.basename(parent).startswith("pci"):
+        return None
+
+    return parent
 
 def find_gpus_sysfs(bdf_pattern=None):
     gpus = []
@@ -282,6 +288,7 @@ GPU_MAP_MULTIPLE = {
         "devids": {
             0x2330: "H100-SXM",
             0x2336: "H100-SXM",
+            0x233f: "H100-SXM",
             0x2322: "H800-PCIE",
             0x2324: "H800-SXM",
         },
@@ -1877,20 +1884,19 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         if self.has_pm():
             if is_linux:
-                if self.pmctrl["STATE"] != 0:
+                prev_power_control = self.sysfs_power_control_get()
+                if prev_power_control != "on":
                     prev_power_state = self.pmctrl["STATE"]
-                    prev_power_control = self.sysfs_power_control_get()
-                    if prev_power_control != "on":
-                        import atexit
+                    import atexit
 
-                        self.sysfs_power_control_set("on")
-                        power_state = self.pmctrl["STATE"]
-                        warning(f"{self} was in D{prev_power_state}, forced power control to on (prev {prev_power_control}). New state D{power_state}")
-                        def restore_power():
-                            warning(f"{self} restoring power control to {prev_power_control}")
-                            self.sysfs_power_control_set(prev_power_control)
+                    self.sysfs_power_control_set("on")
+                    power_state = self.pmctrl["STATE"]
+                    warning(f"{self} was in D{prev_power_state}/control:{prev_power_control}, forced power control to on. New state D{power_state}")
+                    def restore_power():
+                        warning(f"{self} restoring power control to {prev_power_control}")
+                        self.sysfs_power_control_set(prev_power_control)
 
-                        atexit.register(restore_power)
+                    atexit.register(restore_power)
 
             if self.pmctrl["STATE"] != 0:
                 warning("%s not in D0 (current state %d), forcing it to D0", self, self.pmctrl["STATE"])
@@ -2367,7 +2373,12 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         info(f"{self} {self.module_name} trained {len(links)} links {links} dl link states {link_states}")
         topo = NVLINK_TOPOLOGY_HGX_8_H100
         for link in self.nvlink_enabled_links:
-            peer_link, peer_name, _ = topo[self.module_name][link]
+            # Some links may be enabled unexpectedly
+            if link in topo[self.module_name]:
+                peer_link, peer_name, _ = topo[self.module_name][link]
+            else:
+                peer_link = "?"
+                peer_name = "?"
             info(f"{self} {self.module_name} link {link} -> {peer_name}:{peer_link} {self.nvlink_dl_get_link_state(link)} {self.nvlink_get_link_state(link)}")
         self.nvlink_debug_minion_basic_state()
         self.nvlink_debug_nvlipt_lnk_basic_state()
@@ -2381,9 +2392,109 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
     def __str__(self):
         return "Nvidia %s BAR0 0x%x devid %s" % (self.bdf, self.bar0_addr, hex(self.device))
 
+    def query_prc_knobs(self):
+        assert self.has_fsp
 
+        self._init_fsp_rpc()
 
+        knob_state = []
 
+        for knob in PrcKnob:
+            try:
+                knob_value = self.fsp_rpc.prc_knob_read(knob.value)
+            except FspRpcError as err:
+                if err.is_invalid_knob_error:
+                    knob_state.append((knob.name, "invalid"))
+                    continue
+                raise
+            knob_state.append((knob.name, knob_value))
+
+        return knob_state
+
+    def set_ppcie_mode(self, mode):
+        assert self.is_ppcie_query_supported
+
+        ppcie_mode = 0x0
+        bar0_decoupler_val = 0x0
+        if mode == "on":
+            ppcie_mode = 0x1
+            # No BAR0 decoupler on switches
+            if self.is_gpu():
+                bar0_decoupler_val = 0x2
+        elif mode == "off":
+            pass
+        else:
+            raise ValueError(f"Invalid mode {mode}")
+
+        self._init_fsp_rpc()
+
+        cc_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_CCM.value)
+        if cc_knob_value == 1:
+            info(f"CC is currently active. It will be turned off before switching to PPCIe.")
+
+        if ppcie_mode == 0x1:
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_4.value, 0x0)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_34.value, 0x0)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, 0x0)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, 0x0)
+
+        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
+        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, ppcie_mode)
+
+    def query_ppcie_settings(self):
+        assert self.is_ppcie_query_supported
+
+        self._init_fsp_rpc()
+
+        knobs = [
+            ("enable", PrcKnob.PRC_KNOB_ID_PPCIE.value),
+            ("enable-allow-inband-control", PrcKnob.PRC_KNOB_ID_PPCIE_ALLOW_INB.value),
+        ]
+
+        knob_state = []
+
+        for name, knob_id in knobs:
+            knob_value = self.fsp_rpc.prc_knob_read(knob_id)
+            knob_state.append((name, knob_value))
+
+        return knob_state
+
+    def test_ppcie_mode_switch(self):
+        org_mode = self.query_ppcie_mode()
+
+        self._init_fsp_rpc()
+        toggle_2 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_1.value) == 0x1
+        toggle_4 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_3.value) == 0x1
+        toggle_34 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_33.value) == 0x1
+        toggle_cc = self.is_cc_query_supported
+        info(f"{self} test PPCIE switching org_mode {org_mode} toggle_2 {toggle_2} toggle_4 {toggle_4} toggle_34 {toggle_34}")
+
+        prev_mode = org_mode
+
+        for iter in range(5):
+            for mode in ["on", "off"]:
+                debug(f"{self} switching CC to {mode} in iter {iter}")
+                if toggle_2 and prev_mode != "on" and iter > 1:
+                    self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_2.value, 0x1)
+                if toggle_4 and prev_mode != "on" and iter > 2:
+                    self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_4.value, 0x1)
+                if toggle_34 and prev_mode != "on" and iter > 3:
+                    self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_34.value, 0x1)
+                if toggle_cc and prev_mode != "on" and iter > 4:
+                    self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_CCM.value, 0x1)
+                    self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_CCD.value, 0x1)
+
+                self.set_ppcie_mode(mode)
+                self.reset_with_os()
+                new_mode = self.query_ppcie_mode()
+                if new_mode != mode:
+                    raise GpuError(f"{self} PPCIE mode failed to switch to {mode} in iter {iter}. Current mode is {new_mode}")
+                debug(f"{self} PPCIE switched to {mode} in iter {iter}")
+                prev_mode = new_mode
+
+        self.set_ppcie_mode(org_mode)
+        self.reset_with_os()
 
 class GpuMemPort(object):
     def __init__(self, name, mem_control_reg, max_size, falcon):
@@ -3258,7 +3369,7 @@ class FspRpc(object):
         if mdata[3] != 0x13:
             raise GpuError(f"{self} message request type 0x{mdata[3]:x} not matching the command. Data {[hex(d) for d in mdata]}")
         if mdata[4] != 0x0:
-            raise GpuError(f"{self} failed with error 0x{mdata[4]:x}. Data {[hex(d) for d in mdata]}")
+            raise FspRpcError(self, mdata[4], mdata)
 
         return mdata[5:]
 
@@ -3362,6 +3473,17 @@ class BrokenGpuError(Exception):
 class GpuError(Exception):
     pass
 
+class FspRpcError(GpuError):
+    def __init__(self, fsp_rpc, fsp_error, data):
+        self.fsp_rpc = fsp_rpc
+        self.error = fsp_error
+        self.data = data
+        super().__init__(f"{self.fsp_rpc} failed with error {fsp_error:#x}. Data {[hex(d) for d in self.data]}")
+
+    @property
+    def is_invalid_knob_error(self):
+        return self.error == 0x1e3
+
 
 class MctpHeader(NiceStruct):
     _fields_ = [
@@ -3437,6 +3559,9 @@ class NvSwitch(NvidiaDevice):
         self.falcon_dma_initialized = False
         self.falcons_cfg = props.get("falcons_cfg", {})
         self.needs_falcons_cfg = props.get("needs_falcons_cfg", {})
+
+        self.is_ppcie_query_supported = self.is_laguna_plus
+        self.is_cc_query_supported = False
 
         self.common_init()
 
@@ -3611,6 +3736,17 @@ class NvSwitch(NvidiaDevice):
     def __str__(self):
         return "NvSwitch %s %s %s BAR0 0x%x" % (self.bdf, self.name, hex(self.device), self.bar0_addr)
 
+    def query_ppcie_mode(self):
+        assert self.is_ppcie_query_supported
+        self.wait_for_boot()
+
+        ppcie_reg = self.read(0x28c50)
+        ppcie_state = ppcie_reg & 0x1
+        if ppcie_state == 0x1:
+            return "on"
+        else:
+            return "off"
+
 class PrcKnob(Enum):
     PRC_KNOB_ID_1                                   = 1
 
@@ -3630,6 +3766,9 @@ class PrcKnob(Enum):
     PRC_KNOB_ID_33                                  = 33
 
     PRC_KNOB_ID_34                                  = 34
+
+    PRC_KNOB_ID_PPCIE_ALLOW_INB                     = 44
+    PRC_KNOB_ID_PPCIE                               = 45
 
     @classmethod
     def str_from_knob_id(cls, knob_id):
@@ -3692,6 +3831,7 @@ class Gpu(NvidiaDevice):
         # Querying ECC state relies on being able to initialize/clear memory
         self.is_ecc_query_supported = self.is_memory_clear_supported
         self.is_cc_query_supported = self.is_hopper_plus
+        self.is_ppcie_query_supported = self.is_hopper_plus
         self.is_forcing_ecc_on_after_reset_supported = gpu_props["forcing_ecc_on_after_reset_supported"]
         self.is_setting_ecc_after_reset_supported = self.is_ampere_plus
         self.is_mig_mode_supported = self.is_ampere_100
@@ -4006,10 +4146,15 @@ class Gpu(NvidiaDevice):
 
         self._init_fsp_rpc()
 
+        ppcie_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
+        if ppcie_knob_value == 1:
+            info(f"PPCIe is currently active. It will be turned off before switching to CC.")
+
         if cc_mode == 0x1:
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_4.value, 0x0)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_34.value, 0x0)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, 0x0)
 
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
@@ -4038,18 +4183,16 @@ class Gpu(NvidiaDevice):
 
         return knob_state
 
-    def query_prc_knobs(self):
-        assert self.has_fsp
+    def query_ppcie_mode(self):
+        assert self.is_ppcie_query_supported
+        self.wait_for_boot()
 
-        self._init_fsp_rpc()
-
-        knob_state = []
-
-        for knob in PrcKnob:
-            knob_value = self.fsp_rpc.prc_knob_read(knob.value)
-            knob_state.append((knob.name, knob_value))
-
-        return knob_state
+        ppcie_reg = self.read(0x1182cc)
+        ppcie_state = ppcie_reg & 0x20
+        if ppcie_state == 0x20:
+            return "on"
+        else:
+            return "off"
 
 
     def is_boot_done(self):
@@ -4585,7 +4728,7 @@ class Gpu(NvidiaDevice):
 
     def read_module_id_h100(self):
 
-        if self.device in [0x2330, 0x2336, 0x2324]:
+        if self.device in [0x2330, 0x2336, 0x2324, 0x233f]:
             gpios = [0x9, 0x11, 0x12]
         else:
             raise GpuError(f"{self} has unknown mapping for module id")
@@ -4595,7 +4738,7 @@ class Gpu(NvidiaDevice):
             bit = (self.read(0x21200 + 4 * gpio) >> 14) & 0x1
             mod_id |= bit << i
 
-        if self.device in [0x2330, 0x2336]:
+        if self.device in [0x2330, 0x2336, 0x233f]:
             mod_id ^= 0x4
 
         return mod_id
@@ -4839,6 +4982,11 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
     argp.add_option("--query-cc-settings", action='store_true', default=False,
                       help="Query the Confidential Computing (CC) settings of the GPU."
                       "This prints the lower level setting knobs that will take effect upon GPU reset.")
+    argp.add_option("--query-ppcie-mode", action='store_true', default=False,
+                      help="Query the current Protected PCIe (PPCIe) mode of the GPU or switch.")
+    argp.add_option("--query-ppcie-settings", action='store_true', default=False,
+                      help="Query the Protected PPCIe (PPCIe) settings of the GPU or switch."
+                      "This prints the lower level setting knobs that will take effect upon GPU or switch reset.")
     argp.add_option("--query-prc-knobs", action='store_true', default=False,
                       help="Query all the Product Reconfiguration (PRC) knobs.")
     argp.add_option("--set-cc-mode", type='choice', choices=["off", "on", "devtools"],
@@ -4848,6 +4996,13 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                     help="Reset the GPU after switching CC mode such that it is activated immediately.")
     argp.add_option("--test-cc-mode-switch", action='store_true', default=False,
                     help="Test switching CC modes.")
+    argp.add_option("--reset-after-ppcie-mode-switch", action='store_true', default=False,
+                    help="Reset the GPU or switch after switching PPCIe mode such that it is activated immediately.")
+    argp.add_option("--set-ppcie-mode", type='choice', choices=["off", "on"],
+                      help="Configure Protected PCIe (PPCIe) mode. The choices are off (disabled) or on (enabled)."
+                      "The GPU or switch needs to be reset to make the selected mode active. See --reset-after-ppcie-mode-switch for one way of doing it.")
+    argp.add_option("--test-ppcie-mode-switch", action='store_true', default=False,
+                    help="Test switching PPCIE mode.")
     argp.add_option("--query-l4-serial-number", action='store_true', default=False,
                     help="Query the L4 certificate serial number without the MSB. The MSB could be either 0x41 or 0x40 based on the RoT returning the certificate chain.")
     argp.add_option("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
@@ -4980,6 +5135,11 @@ def main():
                         cc_mode = gpu.query_cc_mode()
                         if cc_mode != "off":
                             warning(f"{gpu} has CC mode {cc_mode}, some functionality may not work")
+                if gpu.is_ppcie_query_supported:
+                    if gpu.is_boot_done():
+                        ppcie_mode = gpu.query_ppcie_mode()
+                        if ppcie_mode != "off":
+                            warning(f"{gpu} has PPCIe mode {ppcie_mode}, some functionality may not work")
 
     if gpu:
 
@@ -5067,6 +5227,30 @@ def main():
         for name, value in cc_settings:
             info(f"  {name} = {value}")
 
+    if opts.query_ppcie_settings:
+        if not gpu.is_ppcie_query_supported:
+            error(f"Querying PPCIe settings is not supported on {gpu}")
+            sys.exit(1)
+
+        try:
+            ppcie_settings = gpu.query_ppcie_settings()
+        except GpuError as err:
+            if isinstance(err, FspRpcError) and err.is_invalid_knob_error:
+                error(f"{gpu} does not support PPCIe on current FW. A FW update is required.")
+                sys.exit(1)
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            prc_knobs = gpu.query_prc_knobs()
+            debug(f"{gpu} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+
+        info(f"{gpu} PPCIe settings:")
+        for name, value in ppcie_settings:
+            info(f"  {name} = {value}")
+
     if opts.query_prc_knobs:
         if not gpu.has_fsp:
             error(f"Querying PRC knobs is not supported on {gpu}")
@@ -5110,12 +5294,64 @@ def main():
         cc_mode = gpu.query_cc_mode()
         info(f"{gpu} CC mode is {cc_mode}")
 
+    if opts.set_ppcie_mode:
+        if not gpu.is_ppcie_query_supported:
+            error(f"Configuring PPCIe not supported on {gpu}")
+            sys.exit(1)
+
+        try:
+            gpu.set_ppcie_mode(opts.set_ppcie_mode)
+        except GpuError as err:
+            if isinstance(err, FspRpcError) and err.is_invalid_knob_error:
+                error(f"{gpu} does not support PPCIe on current FW. A FW update is required.")
+                sys.exit(1)
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            prc_knobs = gpu.query_prc_knobs()
+            debug(f"{gpu} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+
+        info(f"{gpu} PPCIe mode set to {opts.set_ppcie_mode}. It will be active after GPU or switch reset.")
+        if opts.reset_after_ppcie_mode_switch:
+            gpu.reset_with_os()
+            new_mode = gpu.query_ppcie_mode()
+            if new_mode != opts.set_ppcie_mode:
+                raise GpuError(f"{gpu} failed to switch to PPCIe mode {opts.set_ppcie_mode}, current mode is {new_mode}.")
+            info(f"{gpu} was reset to apply the new PPCIe mode.")
+
+    if opts.query_ppcie_mode:
+        if not gpu.is_ppcie_query_supported:
+            error(f"Querying PPCIe mode is not supported on {gpu}")
+            sys.exit(1)
+
+        ppcie_mode = gpu.query_ppcie_mode()
+        info(f"{gpu} PPCIe mode is {ppcie_mode}")
+
     if opts.test_cc_mode_switch:
         if not gpu.is_gpu() or not gpu.is_cc_query_supported:
             error(f"Configuring CC not supported on {gpu}")
             sys.exit(1)
         try:
             gpu.test_cc_mode_switch()
+        except GpuError as err:
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            prc_knobs = gpu.query_prc_knobs()
+            debug(f"{gpu} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+
+    if opts.test_ppcie_mode_switch:
+        if not gpu.is_ppcie_query_supported:
+            error(f"Configuring PPCIE not supported on {gpu}")
+            sys.exit(1)
+        try:
+            gpu.test_ppcie_mode_switch()
         except GpuError as err:
             _, _, tb = sys.exc_info()
             traceback.print_tb(tb)
@@ -5218,7 +5454,7 @@ def main():
     if opts.test_pcie_p2p:
         pcie_p2p_test([gpu for gpu in gpus if gpu.is_gpu()])
 
-    if opts.read_sysmem_pa:
+    if opts.read_sysmem_pa is not None:
         addr = opts.read_sysmem_pa
 
         data = gpu.dma_sys_read32(addr)
