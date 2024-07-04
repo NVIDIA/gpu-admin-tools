@@ -4585,7 +4585,7 @@ class Gpu(NvidiaDevice):
 
     def read_module_id_h100(self):
 
-        if self.device in [0x2330, 0x2336, 0x2324]:
+        if self.device in [0x2330, 0x2331, 0x2336, 0x2324]:
             gpios = [0x9, 0x11, 0x12]
         else:
             raise GpuError(f"{self} has unknown mapping for module id")
@@ -4595,7 +4595,7 @@ class Gpu(NvidiaDevice):
             bit = (self.read(0x21200 + 4 * gpio) >> 14) & 0x1
             mod_id |= bit << i
 
-        if self.device in [0x2330, 0x2336]:
+        if self.device in [0x2330, 0x2331, 0x2336]:
             mod_id ^= 0x4
 
         return mod_id
