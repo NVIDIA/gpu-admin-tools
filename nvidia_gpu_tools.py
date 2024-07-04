@@ -2384,7 +2384,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.wait_for_boot()
         self._nvlink_query_enabled_links()
         links = self.nvlink_get_links_in_hs()
-        link_states = Counter(self.nvlink_dl_get_link_states())
+        link_dl_states = Counter(self.nvlink_dl_get_link_states())
+        link_states = Counter(self.nvlink_get_link_states())
         tab = "\t"
         print(f"NVLinks:{tab}{len(links)}\nActive:{tab*2}{link_states['active']}")
         self.nvlink_debug_minion_basic_state()
