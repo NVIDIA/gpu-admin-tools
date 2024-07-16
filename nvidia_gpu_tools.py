@@ -24,7 +24,6 @@
 #
 
 from __future__ import print_function
-from enum import Enum
 import os
 import mmap
 import struct
@@ -42,6 +41,7 @@ from utils import int_from_data, data_from_int, bytearray_from_ints, ints_from_b
 from utils import formatted_tuple_from_data
 from gpu.defines import *
 from pci.defines import *
+from gpu.prc import PrcKnob
 
 if hasattr(time, "perf_counter"):
     perf_counter = time.perf_counter
@@ -63,7 +63,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.05.17o"
+VERSION = "v2024.07.10o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -236,7 +236,7 @@ def check_device_module_deps():
     pass
 
 
-GPU_ARCHES = ["kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper"]
+GPU_ARCHES = ["kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper", "blackwell"]
 NVSWITCH_MAP = {
     0x6000a1: {
         "name": "LR10",
@@ -1179,6 +1179,7 @@ GPU_MAP = {
         },
         "needs_falcons_cfg": False,
     },
+
 }
 
 if is_linux:
@@ -1962,6 +1963,9 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         return True
 
     def reset_pre(self, reset_with_flr=None):
+        if self.is_gpu() and self.is_blackwell_plus:
+            return
+
         if reset_with_flr == None:
             reset_with_flr = self.is_flr_supported()
 
@@ -1980,6 +1984,9 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             self.expected_sbr_only_scratch = 0
 
     def reset_post(self):
+        if self.is_gpu() and self.is_blackwell_plus:
+            return
+
         flr_scratch = self.flr_resettable_scratch()
         sbr_scratch = self.sbr_resettable_scratch()
 
@@ -2657,6 +2664,9 @@ class GpuFalcon(object):
             name = self.name + f"_emem_{p}"
             self.emem_ports.append(GpuMemPort(name, self.base_page_emem + 0xac0 + p * 8, self.max_emem_size, self))
 
+    def __str__(self):
+        return self.name
+
     @property
     def imemc(self):
         return self.cpuctl + NV_PPWR_FALCON_IMEMC(0) - NV_PPWR_FALCON_CPUCTL
@@ -2712,6 +2722,10 @@ class GpuFalcon(object):
     @property
     def sctl(self):
         return self.base_page + 0x240
+
+    @property
+    def fbif_ctl2(self):
+        return self.fbif_ctl + 0x60
 
     @property
     def max_imem_size(self):
@@ -3227,6 +3241,18 @@ class SoeFalcon(GpuFalcon):
         self.has_emem = True
         self.csb_offset_mailbox0 = 0x1000
         super(SoeFalcon, self).__init__("soe", 0x840100, nvswitch, pmc_enable_mask=None)
+
+class OfaFalcon(GpuFalcon):
+    def __init__(self, gpu):
+        super().__init__("ofa", 0x844100, gpu)
+
+    @property
+    def fbif_ctl(self):
+        return self.base_page + 0x424
+
+    @property
+    def fbif_transcfg(self):
+        return self.base_page + 0x400
 
 class FspFalcon(GpuFalcon):
     def __init__(self, device):
@@ -3747,39 +3773,6 @@ class NvSwitch(NvidiaDevice):
         else:
             return "off"
 
-class PrcKnob(Enum):
-    PRC_KNOB_ID_1                                   = 1
-
-    PRC_KNOB_ID_2                                   = 2
-
-    PRC_KNOB_ID_3                                   = 3
-
-    PRC_KNOB_ID_4                                   = 4
-
-    PRC_KNOB_ID_CCD_ALLOW_INB                       = 5
-    PRC_KNOB_ID_CCD                                 = 6
-    PRC_KNOB_ID_CCM_ALLOW_INB                       = 7
-    PRC_KNOB_ID_CCM                                 = 8
-    PRC_KNOB_ID_BAR0_DECOUPLER_ALLOW_INB            = 9
-    PRC_KNOB_ID_BAR0_DECOUPLER                      = 10
-
-    PRC_KNOB_ID_33                                  = 33
-
-    PRC_KNOB_ID_34                                  = 34
-
-    PRC_KNOB_ID_PPCIE_ALLOW_INB                     = 44
-    PRC_KNOB_ID_PPCIE                               = 45
-
-    @classmethod
-    def str_from_knob_id(cls, knob_id):
-        try:
-            prc_knob = PrcKnob(knob_id)
-            knob_name = f"{prc_knob.name} "
-        except ValueError:
-            knob_name = ""
-
-        knob_name += f"{knob_id} ({knob_id:#x})"
-        return knob_name
 
 class Gpu(NvidiaDevice):
     def __init__(self, dev_path):
@@ -3831,7 +3824,8 @@ class Gpu(NvidiaDevice):
         # Querying ECC state relies on being able to initialize/clear memory
         self.is_ecc_query_supported = self.is_memory_clear_supported
         self.is_cc_query_supported = self.is_hopper_plus
-        self.is_ppcie_query_supported = self.is_hopper_plus
+        self.is_ppcie_query_supported = self.is_hopper
+        self.is_bar0_firewall_supported = self.is_blackwell_plus
         self.is_forcing_ecc_on_after_reset_supported = gpu_props["forcing_ecc_on_after_reset_supported"]
         self.is_setting_ecc_after_reset_supported = self.is_ampere_plus
         self.is_mig_mode_supported = self.is_ampere_100
@@ -3988,6 +3982,14 @@ class Gpu(NvidiaDevice):
         return self.name in ["H100-PCIE", "H100-SXM"]
 
     @property
+    def is_blackwell(self):
+        return GPU_ARCHES.index(self.arch) == GPU_ARCHES.index("blackwell")
+
+    @property
+    def is_blackwell_plus(self):
+        return GPU_ARCHES.index(self.arch) >= GPU_ARCHES.index("blackwell")
+
+    @property
     def has_fsp(self):
         return self.is_hopper_plus
 
@@ -4112,7 +4114,7 @@ class Gpu(NvidiaDevice):
 
         return self.get_ecc_state()
 
-    def query_cc_mode(self):
+    def query_cc_mode_hopper(self):
         assert self.is_cc_query_supported
         self.wait_for_boot()
 
@@ -4126,6 +4128,30 @@ class Gpu(NvidiaDevice):
             return "off"
 
         raise GpuError(f"Unexpected CC state 0x{cc_reg}")
+
+    def query_cc_mode_blackwell(self):
+        assert self.is_cc_query_supported
+        self.wait_for_boot()
+
+        cc_reg = self.read(0x590)
+        cc_state = cc_reg & 0x3
+        if cc_state == 0x3:
+            return "devtools"
+        elif cc_state == 0x1:
+            return "on"
+        elif cc_state == 0x0:
+            return "off"
+
+        raise GpuError(f"Unexpected CC state 0x{cc_reg}")
+
+    def query_cc_mode(self):
+        assert self.is_cc_query_supported
+
+        if self.is_hopper:
+            return self.query_cc_mode_hopper()
+
+        if self.is_blackwell_plus:
+            return self.query_cc_mode_blackwell()
 
     def set_cc_mode(self, mode):
         assert self.is_cc_query_supported
@@ -4165,9 +4191,11 @@ class Gpu(NvidiaDevice):
             if ppcie_supported:
                 self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, 0x0)
 
-        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
+        if self.is_hopper:
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
+
 
     def query_cc_settings(self):
         assert self.is_cc_query_supported
@@ -4429,7 +4457,7 @@ class Gpu(NvidiaDevice):
 
         cfg[0:2] = 0x1 if sysmem else 0x0
 
-        self.write(falcon.base_page + 0x684, 1)
+        self.write(falcon.fbif_ctl2, 1)
 
         ctl = self.bitfield(falcon.fbif_ctl)
         ctl[4:5] = 1
@@ -4439,11 +4467,11 @@ class Gpu(NvidiaDevice):
         dmactl[0:1] = 0
 
         self.write(falcon.base_page + 0x110, (address >> 8) & 0xffffffff)
-        self.write(falcon.base_page + 0x128, address >> 40)
+        self.write(falcon.base_page + 0x128, (address >> 40) & 0xffffffff)
 
         # GPU DMA supports 47-bits, but top bits can be globally forced. This
         # only works if there are no other DMAs happening at the same time.
-        self.write(0x100f04, address >> 47)
+        self.write(0x100f04, (address >> 47) & 0xffffffff)
 
         offset = address % 256
         if offset % size != 0:
@@ -4468,13 +4496,20 @@ class Gpu(NvidiaDevice):
 
     def _falcon_dma_init(self):
         self.init_falcons()
-        if hasattr(self, "gsp"):
+        if self.is_hopper_plus:
+            if self.read_bad_ok(0x8443c0) >> 16 == 0xbadf:
+                raise GpuError(f"{self} does not support DMA with current FW.")
+            self.ofa = OfaFalcon(self)
+            falcon = self.ofa
+        elif hasattr(self, "gsp"):
             falcon = self.gsp
         else:
             falcon = self.pmu
 
         if self.falcon_dma_initialized:
             return falcon
+
+        debug(f"{self} Using falcon {falcon} for DMA")
 
         self.set_bus_master(True)
         if self.is_memory_clear_supported:
@@ -4487,7 +4522,7 @@ class Gpu(NvidiaDevice):
 
     def dma_sys_write(self, address, data):
         falcon = self._falcon_dma_init()
-        dmem = falcon.load_dmem(data, phys_base=0)
+        falcon.load_dmem(data, phys_base=0)
         size = len(data) * 4
         self._falcon_dma(falcon, address, size, write=True, sysmem=True)
 
@@ -4608,8 +4643,9 @@ class Gpu(NvidiaDevice):
 
     # Init priv ring (internal bus)
     def init_priv_ring(self):
-        self.write(0x12004c, 0x4)
-        self.write(0x122204, 0x2)
+        if not self.is_blackwell_plus:
+            self.write(0x12004c, 0x4)
+            self.write(0x122204, 0x2)
 
     # Reset priv ring (internal bus)
     def reset_priv_ring(self):
@@ -4763,10 +4799,12 @@ class Gpu(NvidiaDevice):
             offsets.append(("boot_flags", 0x20120))
             for i in range(4):
                 offsets.append((f"fsp_status_{i}", 0x8f0320 + i * 4))
-            offsets.append((f"prc_0", 0x92de0))
-            offsets.append((f"prc_1", 0x92de4))
-            offsets.append((f"prc_2", 0x92de8))
-            offsets.append((f"prc_cold", 0x92dc0))
+            if self.is_hopper:
+                offsets.append((f"last_reset", 0x9128c))
+                offsets.append((f"prc_0", 0x92de0))
+                offsets.append((f"prc_1", 0x92de4))
+                offsets.append((f"prc_2", 0x92de8))
+                offsets.append((f"prc_cold", 0x92dc0))
         elif self.is_turing_plus:
             for i in range(4):
                 offsets.append((f"boot_status_{i}", 0x118234 + i * 4))
@@ -5338,6 +5376,7 @@ def main():
 
         ppcie_mode = gpu.query_ppcie_mode()
         info(f"{gpu} PPCIe mode is {ppcie_mode}")
+
 
     if opts.test_cc_mode_switch:
         if not gpu.is_gpu() or not gpu.is_cc_query_supported:
