@@ -63,7 +63,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.07.10o"
+VERSION = "v2024.07.19o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
