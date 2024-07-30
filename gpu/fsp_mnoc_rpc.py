@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,6 +21,16 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, FspRpcError
-from .fsp_emem_rpc import FspEmemRpc
-from .fsp_mnoc_rpc import FspMnocRpc
+from .mnoc import GpuMnoc
+
+class FspMnocRpc(GpuMnoc):
+    def __init__(self, device, port):
+
+        super().__init__(device, "FSP-MNOC", 0x8f1e00, port)
+
+        if port == 0:
+          self.max_packet_size_bytes = 4160
+        elif port == 1:
+          self.max_packet_size_bytes = 1024
+        else:
+            raise ValueError(f"Invalid port {port}")

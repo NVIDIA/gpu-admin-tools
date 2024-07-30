@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,6 +21,16 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, FspRpcError
-from .fsp_emem_rpc import FspEmemRpc
-from .fsp_mnoc_rpc import FspMnocRpc
+class GpuError(Exception):
+    pass
+
+class FspRpcError(GpuError):
+    def __init__(self, fsp_rpc, fsp_error, data):
+        self.fsp_rpc = fsp_rpc
+        self.error = fsp_error
+        self.data = data
+        super().__init__(f"{self.fsp_rpc} failed with error {fsp_error:#x}. Data {[hex(d) for d in self.data]}")
+
+    @property
+    def is_invalid_knob_error(self):
+        return self.error == 0x1e3

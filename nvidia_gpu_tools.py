@@ -36,12 +36,13 @@ import traceback
 from logging import debug, info, warning, error
 import logging
 from pathlib import Path
-from utils import NiceStruct
+
 from utils import int_from_data, data_from_int, bytearray_from_ints, ints_from_bytearray, read_ints_from_path
 from utils import formatted_tuple_from_data
 from gpu.defines import *
 from pci.defines import *
 from gpu.prc import PrcKnob
+from gpu import GpuError, FspRpcError
 
 if hasattr(time, "perf_counter"):
     perf_counter = time.perf_counter
@@ -63,7 +64,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.07.25o"
+VERSION = "v2024.07.29o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -2047,7 +2048,10 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         self.init_falcons()
 
-        self.fsp_rpc = FspRpc(self.fsp, channel_num=2)
+        if self.is_gpu() and self.is_blackwell_plus:
+            self.fsp_rpc = FspRpc(self.fsp, "mnoc", channel_num=0)
+        else:
+            self.fsp_rpc = FspRpc(self.fsp, "emem", channel_num=2)
 
     def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False):
         timestamp = perf_counter()
@@ -3274,130 +3278,78 @@ class FspFalcon(GpuFalcon):
     def msg_queue_tail_off(self, i):
         return self.base_page + 0x2c84 + i * 8
 
+from gpu.fsp_mctp import MctpHeader, MctpMessageHeader
+
 class FspRpc(object):
-    def __init__(self, fsp_falcon, channel_num):
+    def __init__(self, fsp_falcon, channel_type, channel_num):
         self.falcon = fsp_falcon
         self.device = self.falcon.device
-        self.channel_num = channel_num
 
-        self.nvdm_emem_base = self.channel_num * 1024
-
-        self.reset_rpc_state()
+        if channel_type == "mnoc":
+            from gpu import FspMnocRpc
+            self.transport = FspMnocRpc(self.device, channel_num)
+        elif channel_type == "emem":
+            from gpu import FspEmemRpc
+            self.transport = FspEmemRpc(fsp_falcon, channel_num)
+        else:
+            raise ValueError(f"Invalid channel type {channel_type}")
 
     def __str__(self):
         return f"{self.device} FSP-RPC"
 
-    def reset_rpc_state(self):
-        if self.is_queue_empty() and self.is_msg_queue_empty():
-            debug(f"{self} both queues empty; queue {self.read_queue_state()} msg queue {self.read_msg_queue_state()}")
+
+    def send_cmd(self, nvdm_type, data, timeout=5, sync=True, seid=0):
+        mctp_header = MctpHeader()
+        mctp_header.seid = 0
+        mctp_msg_header = MctpMessageHeader()
+        max_packet_size = self.transport.max_packet_size_bytes // 4
+
+        mctp_msg_header.nvdm_type = nvdm_type
+
+        total_size = len(data) + mctp_header.size // 4 + mctp_msg_header.size // 4
+        if total_size > max_packet_size:
+            mctp_header.eom = 0
+
+        pdata = [mctp_header.to_int(), mctp_msg_header.to_int()] + data
+        remaining_data = pdata[max_packet_size: ]
+        pdata = pdata[:max_packet_size]
+
+        debug(f"{self} sending first packet. Total size {total_size * 4} bytes. First packet {len(pdata) * 4} bytes")
+        self.transport.send_data(pdata)
+
+        while len(remaining_data) != 0:
+            mctp_header.som = 0
+            mctp_header.seq = (mctp_header.seq + 1) % 4
+            if len(remaining_data) + mctp_header.size // 4 <= max_packet_size:
+                mctp_header.eom = 1
+            pdata = [mctp_header.to_int()] + remaining_data
+            remaining_data = pdata[max_packet_size:]
+            pdata = pdata[:max_packet_size]
+
+            debug(f"Sending extra packet {len(pdata) * 4} bytes remaining data {len(remaining_data) * 4} bytes")
+            self.transport.send_data(pdata)
+
+        if not sync:
             return
 
-        debug(f"{self} one of the queues not empty, waiting for things to settle; queue {self.read_queue_state()} msg queue {self.read_msg_queue_state()}")
-        self.poll_for_msg_queue(timeout_fatal=False)
-        debug(f"{self} after wait; queue {self.read_queue_state()} msg queue {self.read_msg_queue_state()}")
-
-        # Reset both queues
-        self.write_queue_head_tail(self.nvdm_emem_base, self.nvdm_emem_base)
-        self.device.write_verbose(self.falcon.msg_queue_tail_off(self.channel_num), self.nvdm_emem_base)
-        self.device.write_verbose(self.falcon.msg_queue_head_off(self.channel_num), self.nvdm_emem_base)
-
-    def read_queue_state(self):
-        return (self.device.read(self.falcon.queue_head_off(self.channel_num)),
-                self.device.read(self.falcon.queue_tail_off(self.channel_num)))
-
-    def is_queue_empty(self):
-        mhead, mtail = self.read_queue_state()
-        return mhead == mtail
-
-    def write_queue_head_tail(self, head, tail):
-        self.device.write_verbose(self.falcon.queue_tail_off(self.channel_num), tail)
-        self.device.write_verbose(self.falcon.queue_head_off(self.channel_num), head)
-
-    def read_msg_queue_state(self):
-        return (self.device.read(self.falcon.msg_queue_head_off(self.channel_num)),
-                self.device.read(self.falcon.msg_queue_tail_off(self.channel_num)))
-
-    def is_msg_queue_empty(self):
-        mhead, mtail = self.read_msg_queue_state()
-        return mhead == mtail
-
-    def write_msg_queue_tail(self, tail):
-        self.device.write_verbose(self.falcon.msg_queue_tail_off(self.channel_num), tail)
-
-
-    def poll_for_msg_queue(self, timeout=5, sleep_interval=0.01, timeout_fatal=True):
-        timestamp = perf_counter()
-        while True:
-            loop_stamp = perf_counter()
-            mhead, mtail = self.read_msg_queue_state()
-            if mhead != mtail:
-                return
-            if loop_stamp - timestamp > timeout:
-                if timeout_fatal:
-                    raise GpuError(f"Timed out polling for {self.falcon.name} message queue on channel {self.channel_num}. head {mhead} == tail {mtail}")
-                else:
-                    return
-            if sleep_interval > 0.0:
-                time.sleep(sleep_interval)
-
-    def poll_for_queue_empty(self, timeout=1, sleep_interval=0.01):
-        timestamp = perf_counter()
-        while True:
-            loop_stamp = perf_counter()
-            if self.is_queue_empty():
-                return
-            if loop_stamp - timestamp > timeout:
-                mhead, mtail = self.read_queue_state()
-                raise GpuError(f"Timed out polling for {self.falcon.name} cmd queue to be empty on channel {self.channel_num}. head {mhead} != tail {mtail}")
-            if sleep_interval > 0.0:
-                time.sleep(sleep_interval)
-
-    def prc_cmd(self, data):
-        mctp_header = MctpHeader()
-        mctp_msg_header = MctpMessageHeader()
-
-        mctp_msg_header.nvdm_type = 0x13
-
-
-        self.device.wait_for_boot()
-
-        self.poll_for_queue_empty()
-        head, tail = self.read_queue_state()
-        if head != tail:
-            raise GpuError(f"RPC cmd queue not empty head {head} tail {tail}")
-        mhead, mtail = self.read_msg_queue_state()
-        if mhead != mtail:
-            raise GpuError(f"RPC msg queue not empty head {mhead} tail {mtail}")
-
-        cdata = mctp_header.to_int_array() + mctp_msg_header.to_int_array() + data
-        debug(f"{self} command {[hex(d) for d in cdata]}")
-        self.falcon.write_emem(cdata, phys_base=self.nvdm_emem_base, port=self.channel_num)
-        self.write_queue_head_tail(self.nvdm_emem_base, self.nvdm_emem_base + (len(cdata) - 1) * 4)
-        rpc_time = perf_counter()
-        self.poll_for_msg_queue()
-        rpc_time = perf_counter() - rpc_time
-        debug(f"{self} response took {rpc_time*1000:.1f} ms")
-
-        mhead, mtail = self.read_msg_queue_state()
-        debug(f"{self} msg queue after poll {mhead} {mtail}")
-        msize = mtail - mhead + 4
-        mdata = self.falcon.read_emem(self.nvdm_emem_base, msize, port=self.channel_num)
+        mdata = self.transport.receive_data()
+        msize = len(mdata) * 4
         debug(f"{self} response {[hex(d) for d in mdata]}")
-
-        # Reset the tail before checking for errors
-        self.write_msg_queue_tail(mhead)
 
         if msize < 5 * 4:
             raise GpuError(f"{self} response size {msize} is smaller than expected. Data {[hex(d) for d in mdata]}")
         mctp_msg_header.from_int(mdata[1])
         if mctp_msg_header.nvdm_type != 0x15:
             raise GpuError(f"{self} message wrong nvdm_type. Data {[hex(d) for d in mdata]}")
-        if mdata[3] != 0x13:
-            raise GpuError(f"{self} message request type 0x{mdata[3]:x} not matching the command. Data {[hex(d) for d in mdata]}")
+        if mdata[3] != nvdm_type:
+            raise GpuError(f"{self} message request type 0x{mdata[3]:x} not matching the command 0x{nvdm_type:x}. Data {[hex(d) for d in mdata]}")
         if mdata[4] != 0x0:
             raise FspRpcError(self, mdata[4], mdata)
 
         return mdata[5:]
+
+    def prc_cmd(self, data, sync=True):
+        return self.send_cmd(0x13, data, sync=sync)
 
     def prc_ecc(self, enable_ecc, persistent):
         # ECC is sub msg 0x1
@@ -3496,53 +3448,7 @@ class UnknownGpuError(Exception):
 class BrokenGpuError(Exception):
     pass
 
-class GpuError(Exception):
-    pass
 
-class FspRpcError(GpuError):
-    def __init__(self, fsp_rpc, fsp_error, data):
-        self.fsp_rpc = fsp_rpc
-        self.error = fsp_error
-        self.data = data
-        super().__init__(f"{self.fsp_rpc} failed with error {fsp_error:#x}. Data {[hex(d) for d in self.data]}")
-
-    @property
-    def is_invalid_knob_error(self):
-        return self.error == 0x1e3
-
-
-class MctpHeader(NiceStruct):
-    _fields_ = [
-            ("version", "I", 4),
-            ("rsvd0", "I", 4),
-            ("deid", "I", 8),
-            ("seid", "I", 8),
-            ("tag", "I", 3),
-            ("to", "I", 1),
-            ("seq", "I", 2),
-            ("eom", "I", 1),
-            ("som", "I", 1),
-        ]
-
-    def __init__(self):
-        super().__init__()
-
-        self.som = 1
-        self.eom = 1
-
-class MctpMessageHeader(NiceStruct):
-    _fields_ = [
-            ("type", "I", 7),
-            ("ic", "I", 1),
-            ("vendor_id", "I", 16),
-            ("nvdm_type", "I", 8),
-    ]
-
-    def __init__(self):
-        super().__init__()
-
-        self.type = 0x7e
-        self.vendor_id = 0x10de
 
 class NvSwitch(NvidiaDevice):
     def __init__(self, dev_path):
