@@ -64,7 +64,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.07.29o"
+VERSION = "v2024.08.09o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -1703,7 +1703,11 @@ class PciDevice(Device):
         if not os.path.exists(reset_path):
             error("%s reset not present: '%s'", self, reset_path)
         with open(reset_path, "w") as rf:
+            self.reset_pre()
             rf.write("1")
+        debug(f"{self} reset via sysfs")
+
+        self.reset_post()
 
     def reset_with_os(self):
         if is_linux:
@@ -1719,6 +1723,12 @@ class PciDevice(Device):
             return False
 
         return self.devcap["FLR"] == 1
+
+    def reset_pre(self):
+        pass
+
+    def reset_post(self):
+        pass
 
 PCI_BRIDGE_CONTROL = 0x3e
 class PciBridgeControl(Bitfield):
@@ -1908,6 +1918,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.fsp_rpc = None
         self._mod_name = None
 
+        self.knob_defaults = {}
+
         if self.parent:
             self.parent.children.append(self)
 
@@ -2032,13 +2044,6 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         return True
 
-    def sysfs_reset(self):
-        self.reset_pre()
-
-        super(NvidiaDevice, self).sysfs_reset()
-
-        self.reset_post()
-
     def _init_fsp_rpc(self):
         if self.fsp_rpc != None:
             return
@@ -2149,7 +2154,13 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         if unit == "minion":
             return (lambda group, reg: self._nvlink_minion_offset(group, reg))
 
+
     def _nvlink_query_enabled_links(self):
+        if hasattr(self, "nvlink_enabled_links"):
+            return self.nvlink_enabled_links
+
+        if self.is_gpu() and self.is_blackwell_plus:
+            return self._nvlink_query_enabled_links_b100()
         self.nvlink_enabled_links = []
         groups = set()
         links = self.nvlink["number"]
@@ -2169,14 +2180,32 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self._nvlink_query_enabled_links()
         nport_regs = [
             ("NV_INTERNAL", 0x00000054),
+            ("NV_INTERNAL", 0x00003040),
+            ("NV_INTERNAL", 0x00004040),
+            ("NV_INTERNAL", 0x00004048),
         ]
 
         for name, unit_offset in nport_regs:
             for link in self.nvlink_enabled_links:
                 offset = self._nvlink_nport_top_offset(link, unit_offset)
                 data = self.read_bad_ok(offset)
-                data_2 = data >> 15
-                debug(f"{self} link {link:2d} {name} 0x{offset:x} = 0x{data:x} 0x{data_2:x}")
+                debug(f"{self} link {link:2d} {name} 0x{offset:x} = 0x{data:x}")
+
+    def nvlink_debug_nvlipt_basic_state(self):
+        group_regs = [
+            ("NV_INTERNAL", 0x00000100),
+            ("NV_INTERNAL", 0x00000104),
+            ("NV_INTERNAL", 0x00000108),
+            ("NV_INTERNAL", 0x0000010c),
+            ("NV_INTERNAL", 0x00000110),
+            ("NV_INTERNAL", 0x00000114),
+            ("NV_INTERNAL", 0x00000200),
+        ]
+        for g in self.nvlink_enabled_groups:
+            for name, unit_offset in group_regs:
+                offset = self._nvlink_nvlipt_offset(g, unit_offset)
+                data = self.read_bad_ok(offset)
+                debug(f"{self} group {g:2d} {name} 0x{unit_offset:x} 0x{offset:x} = 0x{data:x}")
 
     def nvlink_debug_nvlipt_lnk_basic_state(self):
         regs = [
@@ -2192,17 +2221,16 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             ("NV_INTERNAL", 0x0000004ac),
             ("NV_INTERNAL", 0x00000600),
             ("NV_INTERNAL", 0x00000604),
-            ("NV_INTERNAL", 0x00000608),
-            ("NV_INTERNAL", 0x0000000c),
-            ("NV_INTERNAL", 0x00000018),
-            ("NV_INTERNAL", 0x00000000),
+            ("NV_INTERNAL", 0x0000060c),
+            ("NV_INTERNAL", 0x00000610),
+            ("NV_INTERNAL", 0x00000618),
+            ("NV_INTERNAL", 0x0000061c),
+            ("NV_INTERNAL", 0x00000624),
+            ("NV_INTERNAL", 0x00000628),
+            ("NV_INTERNAL", 0x00000638),
+            ("NV_INTERNAL", 0x0000063c),
             ("NV_INTERNAL", 0x0000064c),
             ("NV_INTERNAL", 0x00000650),
-            ("NV_INTERNAL", 0x00000654),
-            ("NV_INTERNAL", 0x0000000c),
-            ("NV_INTERNAL", 0x00000018),
-            ("NV_INTERNAL", 0x00000000),
-            ("NV_INTERNAL", 0x0000060c),
             ("NV_INTERNAL", 0x00000380),
         ]
         for reg in regs:
@@ -2280,6 +2308,7 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
     def nvlink_debug_minion_basic_state(self):
         group_regs = [
+            ("NV_INTERNAL", 0x00000788),
             ("NV_INTERNAL", 0x00002830),
             ("NV_INTERNAL", 0x00002810),
             ("NV_INTERNAL", 0x2818)
@@ -2324,7 +2353,12 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         else:
             return str(state)
 
+
     def nvlink_get_link_states(self):
+        self._nvlink_query_enabled_links()
+        if self.is_blackwell_plus:
+            return self.nvlink_get_link_states_b100()
+
         self._nvlink_query_enabled_links()
         states = []
         for link in self.nvlink_enabled_links:
@@ -2364,18 +2398,28 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         return states
 
     def nvlink_is_link_in_hs(self, link):
+        if self.is_gpu() and self.is_blackwell_plus:
+            return self.nvlink_get_link_states()[link] == "up"
         link_state = self.nvlink_dl_get_link_state(link)
         return link_state == "active" or link_state == "sleep"
 
     def nvlink_get_links_in_hs(self):
-        self._nvlink_query_enabled_links()
         links_in_hs = []
+        self._nvlink_query_enabled_links()
+
+        if self.is_gpu() and self.is_blackwell_plus:
+            states = self.nvlink_get_link_states()
+            for link in self._nvlink_query_enabled_links():
+                if states[link] == "up":
+                    links_in_hs.append(link)
+            return links_in_hs
+
         for link in self.nvlink_enabled_links:
             if self.nvlink_is_link_in_hs(link):
                 links_in_hs.append(link)
         return links_in_hs
 
-    def nvlink_debug(self):
+    def nvlink_debug_h100(self):
         from collections import Counter
         self.wait_for_boot()
         self._nvlink_query_enabled_links()
@@ -2391,6 +2435,7 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
                 peer_link = "?"
                 peer_name = "?"
             info(f"{self} {self.module_name} link {link} -> {peer_name}:{peer_link} {self.nvlink_dl_get_link_state(link)} {self.nvlink_get_link_state(link)}")
+        self.nvlink_debug_nvlipt_basic_state()
         self.nvlink_debug_minion_basic_state()
         self.nvlink_debug_nvlipt_lnk_basic_state()
         self.nvlink_debug_nvltlc_basic_state()
@@ -2399,9 +2444,152 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             self.nvlink_debug_nport()
 
 
+    def nvlink_debug(self):
+        return self.nvlink_debug_h100()
+
+
 
     def __str__(self):
         return "Nvidia %s BAR0 0x%x devid %s" % (self.bdf, self.bar0_addr, hex(self.device))
+
+    def knobs_query(self, knobs):
+        current_state = {}
+        for knob in knobs:
+            if knob == "cc":
+                current_state["cc"] = self.query_cc_mode()
+            elif knob == "ppcie":
+                current_state["ppcie"] = self.query_ppcie_mode()
+            elif knob == "ecc":
+                current_state["ecc"] = self.query_final_ecc_state()
+            elif knob == "mig":
+                current_state["mig"] = self.query_mig_mode()
+            else:
+                raise ValueError(f"{self} Unhandled {knob}")
+
+        return current_state
+
+    def knobs_set(self, knobs: list, assume_no_pending_settings: bool):
+        modified_knobs = []
+        current_state = {}
+
+        if self.is_cc_query_supported and self.query_cc_mode() == "on":
+            info(f"{self} has CC mode enabled, assuming all knobs need updates")
+            assume_no_pending_settings = False
+
+        if self.is_ppcie_query_supported and self.query_ppcie_mode() == "on":
+            info(f"{self} has PPCIE mode enabled, assuming all knobs need updates")
+            assume_no_pending_settings = False
+
+        if assume_no_pending_settings:
+            current_state = self.knobs_query(knobs.keys())
+        else:
+            for knob in knobs.keys():
+                current_state[knob] = "unknown"
+
+        for knob, knob_value in knobs.items():
+            if current_state[knob] == knob_value:
+                debug(f"{self} knob {knob} already in {knob_value} state, skipping")
+                continue
+
+            if knob == "cc":
+                self.set_cc_mode(knob_value)
+            elif knob == "ppcie":
+                try:
+                    self.set_ppcie_mode(knob_value)
+                except GpuError as err:
+                    if isinstance(err, FspRpcError) and err.is_invalid_knob_error:
+                        debug(f"{gpu} does not support PPCIe on current FW, skipping")
+                        continue
+                    raise
+            elif knob == "ecc":
+                if self.is_ampere_plus:
+                    self.set_ecc_mode_after_reset(knob_value)
+                else:
+                    if not knob_value:
+                        raise ValueError(f"{self} knob {knob} only supports enabled state")
+                    self.force_ecc_on_after_reset()
+            elif knob == "mig":
+                self.set_mig_mode_after_reset(knob_value)
+            else:
+                raise ValueError(f"{self} Unhandled {knob}")
+            modified_knobs.append(knob)
+
+        return modified_knobs
+
+    def knobs_reset_to_defaults(self, knobs, assume_no_pending_settings):
+        knobs_to_reset = {}
+        for k in knobs:
+            if k == "all":
+                knobs_to_reset = self.knob_defaults
+                break
+            if k not in self.knob_defaults:
+                raise ValueError(f"{self} doesn't support knob {k}")
+            knobs_to_reset[k] = self.knob_defaults[k]
+
+        return self.knobs_set(knobs_to_reset, assume_no_pending_settings)
+
+    def knobs_reset_to_defaults_test(self):
+        self.reset_with_os()
+        modified = self.knobs_set(self.knob_defaults, True)
+        if len(modified) != 0:
+            self.reset_with_os()
+
+        combinations = []
+        for knob, value in self.knob_defaults.items():
+            if isinstance(value, bool):
+                if knob == "ecc" and not self.is_ampere_plus:
+                    combinations.append([("ecc", True)])
+                else:
+                    combinations.append([(knob, True), (knob, False)])
+            elif knob == "cc":
+                combinations.append([(knob, "on"), (knob, "off"), (knob, "devtools")])
+            elif knob == "ppcie":
+                combinations.append([(knob, "on"), (knob, "off")])
+            else:
+                raise ValueError("Unhandled knob {knob}")
+
+        # Iterate over all possible combinations
+        import itertools
+        for test_knobs_tuple in itertools.product(*combinations):
+            test_knobs = dict(test_knobs_tuple)
+
+            debug(f"{self} test knobs {test_knobs}")
+            self.knobs_set(test_knobs, True)
+            self.reset_with_os()
+            debug(f"{self} test knobs set {test_knobs}")
+
+            cc_or_ppcie = test_knobs.get("ppcie", "off") == "on" or test_knobs.get("cc", "off") == "on"
+
+            if not cc_or_ppcie:
+                test_knobs_check = self.knobs_query(test_knobs.keys())
+                if test_knobs_check != test_knobs:
+                    raise GpuError(f"{self} knobs not matching after reset {test_knobs_check} != {test_knobs}")
+
+            modified = self.knobs_reset_to_defaults(["all"], True)
+
+            if not cc_or_ppcie:
+                for knob, value in test_knobs.items():
+                    if self.knob_defaults[knob] != value:
+                        if knob not in modified:
+                            raise GpuError(f"{self} knob {knob} not modified as expected, test {test_knobs} defaults {self.knob_defaults}")
+                for modified_knob in modified:
+                    if self.knob_defaults[modified_knob] == test_knobs[modified_knob]:
+                        raise GpuError(f"{self} knob {knob} modified unnecessarily, test {test_knobs} defaults {self.knob_defaults}")
+            else:
+                if set(modified) != set(self.knob_defaults.keys()):
+                    raise GpuError(f"{self} CC/PPCIE on but not all knobs were modified, test {modified} defaults {self.knob_defaults}")
+
+            self.reset_with_os()
+            debug(f"{self} test knobs modified {modified}")
+
+            current = self.knobs_query(test_knobs.keys())
+            if current != self.knob_defaults:
+                raise GpuError(f"{self} knobs not matching after reset {current} != {self.knob_defaults}")
+
+        self.reset_with_os()
+        modified = self.knobs_set(self.knob_defaults, True)
+        if len(modified) != 0:
+            self.reset_with_os()
 
     def query_prc_knobs(self):
         assert self.has_fsp
@@ -2411,14 +2599,15 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         knob_state = []
 
         for knob in PrcKnob:
+            knob_name = PrcKnob.str_from_knob_id(knob.value)
             try:
                 knob_value = self.fsp_rpc.prc_knob_read(knob.value)
             except FspRpcError as err:
                 if err.is_invalid_knob_error:
-                    knob_state.append((knob.name, "invalid"))
+                    knob_state.append((knob_name, "invalid"))
                     continue
                 raise
-            knob_state.append((knob.name, knob_value))
+            knob_state.append((knob_name, knob_value))
 
         return knob_state
 
@@ -3495,6 +3684,9 @@ class NvSwitch(NvidiaDevice):
         self.is_ppcie_query_supported = self.is_laguna_plus
         self.is_cc_query_supported = False
 
+        if self.is_ppcie_query_supported:
+            self.knob_defaults = {"ppcie": "off"}
+
         self.common_init()
 
     def is_nvswitch(self):
@@ -3749,6 +3941,7 @@ class Gpu(NvidiaDevice):
         self.falcon_dma_initialized = False
         self.falcons_cfg = gpu_props.get("falcons_cfg", {})
         self.needs_falcons_cfg = gpu_props.get("needs_falcons_cfg", {})
+        self.mse = None
 
         if self.is_ampere_plus:
             graphics_mask = 0
@@ -3760,6 +3953,15 @@ class Gpu(NvidiaDevice):
 
             self.pmc_device_graphics_mask = graphics_mask
         self.hulk_ucode_data = None
+
+        if self.is_turing_plus:
+            self.knob_defaults['ecc'] = True
+        if self.is_ampere:
+            self.knob_defaults['mig'] = False
+        if self.is_hopper_plus:
+            self.knob_defaults['cc'] = "off"
+        if self.is_hopper:
+            self.knob_defaults['ppcie'] = "off"
 
         self.common_init()
 
@@ -3953,12 +4155,12 @@ class Gpu(NvidiaDevice):
         # Enable MMIO
         self.set_command_memory(True)
 
+        self.reset_post()
+
         return self.sanity_check()
 
-    def reset_with_sbr(self):
-        status = super(Gpu, self).reset_with_sbr()
-        if not status:
-            return False
+    def reset_post(self):
+        super(Gpu, self).reset_post()
 
         # Reinit priv ring
         self.init_priv_ring()
@@ -3968,27 +4170,24 @@ class Gpu(NvidiaDevice):
             self.falcons = None
             self.init_falcons()
 
-        return True
-
-    def reset_with_flr(self):
-        status = super(Gpu, self).reset_with_flr()
-        if not status:
-            return False
-
-        # Reinit priv ring
-        self.init_priv_ring()
-
-        # Reinitialize falcons if they were already initialized
-        if self.falcons:
-            self.falcons = None
-            self.init_falcons()
-
-        return True
+        if self.mse:
+            # After reset, MSE needs to be reinitialized, if used again.
+            self.mse = None
 
     def get_memory_size(self):
-        config = self.read(0x100ce0)
+        if self.is_blackwell_plus:
+            config_offset = 0x1fa3e0
+        else:
+            config_offset = 0x100ce0
+        if self.is_hopper_plus:
+            mag_mask = (1<<(27-4+1)) - 1
+        else:
+            mag_mask = (1<<(9-4+1)) - 1
+
+
+        config = self.read(config_offset)
         scale = config & 0xf
-        mag = (config >> 4) & 0x3f
+        mag = (config >> 4) & mag_mask
         size = mag << (scale + 20)
         ecc_tax = (config >> 30) & 1
         if ecc_tax:
@@ -4035,20 +4234,6 @@ class Gpu(NvidiaDevice):
 
         raise GpuError(f"Unexpected CC state 0x{cc_reg}")
 
-    def query_cc_mode_blackwell(self):
-        assert self.is_cc_query_supported
-        self.wait_for_boot()
-
-        cc_reg = self.read(0x590)
-        cc_state = cc_reg & 0x3
-        if cc_state == 0x3:
-            return "devtools"
-        elif cc_state == 0x1:
-            return "on"
-        elif cc_state == 0x0:
-            return "off"
-
-        raise GpuError(f"Unexpected CC state 0x{cc_reg}")
 
     def query_cc_mode(self):
         assert self.is_cc_query_supported
@@ -4078,17 +4263,18 @@ class Gpu(NvidiaDevice):
 
         self._init_fsp_rpc()
 
-        ppcie_supported = True
-        try:
-            ppcie_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
-            if ppcie_knob_value == 1:
-                info(f"{self} has PPCIe enabled. It will be turned off before switching to CC.")
-        except FspRpcError as err:
-            if err.is_invalid_knob_error:
-                debug(f"{self} has older FW that doesn't support PPCIE.")
-                ppcie_supported = False
-            else:
-                raise
+        ppcie_supported = self.is_ppcie_query_supported
+        if ppcie_supported:
+            try:
+                ppcie_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
+                if ppcie_knob_value == 1:
+                    info(f"{self} has PPCIe enabled. It will be turned off before switching to CC.")
+            except FspRpcError as err:
+                if err.is_invalid_knob_error:
+                    debug(f"{self} has older FW that doesn't support PPCIE.")
+                    ppcie_supported = False
+                else:
+                    raise
 
         if cc_mode == 0x1:
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
@@ -4180,7 +4366,10 @@ class Gpu(NvidiaDevice):
             # that.
             self.wait_for_boot()
 
-        self.poll_register("memory_clear_finished", 0x100b20, 0x1, 5)
+        if self.is_blackwell_plus:
+            self.poll_register("memory_clear_finished", 0x8a004c, 0x1, 5)
+        else:
+            self.poll_register("memory_clear_finished", 0x100b20, 0x1, 5)
 
     def force_ecc_on_after_reset_turing(self):
         assert self.is_turing
@@ -4312,7 +4501,7 @@ class Gpu(NvidiaDevice):
 
     def _init_bar0_window(self):
         self.set_bus_master(True)
-        if self.is_turing_plus:
+        if self.is_turing_plus and not self.is_hopper_plus:
             cfg = self.read(0x100ed0)
             self.write(0x100ed0, cfg & ~0x4)
 
@@ -4698,6 +4887,7 @@ class Gpu(NvidiaDevice):
         if self.is_hopper_plus:
             return self.read_module_id_h100()
 
+
     def debug_dump(self):
         offsets = []
         if self.is_hopper_plus:
@@ -4964,6 +5154,11 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
 
     argp.add_option("--debug-dump", action='store_true', default=False, help="Dump various state from the device for debug")
     argp.add_option("--nvlink-debug-dump", action="store_true", help="Dump NVLINK debug state.")
+    argp.add_option("--knobs-reset-to-defaults-list", action='store_true', help="""Show the supported knobs and their default state""")
+    argp.add_option("--knobs-reset-to-defaults", action='append', help="""Set various device configuration knobs to defaults. Supported on Turing+ GPUs and NvSwitch_gen3. See --reset-knobs-to-defaults-query for the list of supported knobs and their defaults on a specific device.
+The option can be specified multiple times to list specific knobs or 'all' can be used to indicate all supported ones should be reset.""")
+    argp.add_option("--knobs-reset-to-defaults-assume-no-pending-changes", action='store_true', help="Indicate that the device was reset after last time any knobs were modified. This allows the reset to defaults to be slightly optimized by querying the current state")
+    argp.add_option("--knobs-reset-to-defaults-test", action='store_true', help="Test knob setting and resetting")
     argp.add_option("--force-ecc-on-after-reset", action='store_true', default=False,
                     help="Force ECC to be enabled after a subsequent GPU reset")
     argp.add_option("--test-ecc-toggle", action='store_true', default=False,
@@ -5451,6 +5646,21 @@ def main():
         data = opts.write_bar1[1]
 
         gpu.write_bar1(addr, data)
+
+    if opts.knobs_reset_to_defaults_list:
+        if len(gpu.knob_defaults) == 0:
+            raise ValueError(f"{gpu} does not support knob reset")
+        info(f"{gpu} {gpu.knob_defaults}")
+
+    if opts.knobs_reset_to_defaults:
+        if len(gpu.knob_defaults) == 0:
+            raise ValueError(f"{gpu} does not support knob reset")
+        gpu.knobs_reset_to_defaults(opts.knobs_reset_to_defaults, opts.knobs_reset_to_defaults_assume_no_pending_changes)
+
+    if opts.knobs_reset_to_defaults_test:
+        if len(gpu.knob_defaults) == 0:
+            raise ValueError(f"{gpu} does not support knob reset")
+        gpu.knobs_reset_to_defaults_test()
 
 
 

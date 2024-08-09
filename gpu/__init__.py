@@ -23,4 +23,3 @@
 
 from .error import GpuError, FspRpcError
 from .fsp_emem_rpc import FspEmemRpc
-from .fsp_mnoc_rpc import FspMnocRpc
