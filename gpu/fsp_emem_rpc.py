@@ -22,7 +22,7 @@
 #
 
 from logging import debug
-from .error import GpuError
+from .error import GpuError, FspRpcError, GpuRpcTimeout
 
 import time
 if hasattr(time, "perf_counter"):
@@ -90,7 +90,7 @@ class FspEmemRpc:
                 return
             if loop_stamp - timestamp > timeout:
                 if timeout_fatal:
-                    raise GpuError(f"Timed out polling for {self.falcon.name} message queue on channel {self.channel_num}. head {mhead} == tail {mtail}")
+                    raise GpuRpcTimeout(f"Timed out polling for {self.falcon.name} message queue on channel {self.channel_num}. head {mhead} == tail {mtail}")
                 else:
                     return
             if sleep_interval > 0.0:
@@ -111,7 +111,7 @@ class FspEmemRpc:
 
             if loop_stamp - timestamp > timeout:
                 mhead, mtail = self.read_queue_state()
-                raise GpuError(f"Timed out polling for {self.falcon.name} cmd queue to be empty on channel {self.channel_num}. head {mhead} != tail {mtail}")
+                raise GpuRpcTimeout(f"Timed out polling for {self.falcon.name} cmd queue to be empty on channel {self.channel_num}. head {mhead} != tail {mtail}")
             if sleep_interval > 0.0:
                 time.sleep(sleep_interval)
 

@@ -24,6 +24,12 @@
 class GpuError(Exception):
     pass
 
+class GpuPollTimeout(GpuError):
+    pass
+
+class GpuRpcTimeout(GpuError):
+    pass
+
 class FspRpcError(GpuError):
     def __init__(self, fsp_rpc, fsp_error, data):
         self.fsp_rpc = fsp_rpc

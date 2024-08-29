@@ -21,5 +21,5 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, FspRpcError
+from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
 from .fsp_emem_rpc import FspEmemRpc

@@ -42,7 +42,7 @@ from utils import formatted_tuple_from_data
 from gpu.defines import *
 from pci.defines import *
 from gpu.prc import PrcKnob
-from gpu import GpuError, FspRpcError
+from gpu import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
 
 if hasattr(time, "perf_counter"):
     perf_counter = time.perf_counter
@@ -64,7 +64,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.08.09o"
+VERSION = "v2024.08.23o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -2058,25 +2058,34 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         else:
             self.fsp_rpc = FspRpc(self.fsp, "emem", channel_num=2)
 
-    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False):
+    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None):
+        if (value and value >> 16 == 0xbadf) or badf_ok:
+            read_function = self.read_bad_ok
+        else:
+            read_function = self.read
+
         timestamp = perf_counter()
         while True:
             loop_stamp = perf_counter()
             try:
-                if value >> 16 == 0xbadf:
-                    reg = self.read_bad_ok(offset)
-                else:
-                    reg = self.read(offset)
+                reg = read_function(offset)
             except:
-                error("Failed to read falcon register %s (%s)", name, hex(offset))
+                error("Failed to read register %s (%s)", name, hex(offset))
                 raise
 
-            if reg & mask == value:
-                if debug_print:
-                    debug("Register %s (%s) = %s after %f secs", name, hex(offset), hex(value), perf_counter() - timestamp)
-                return
+            if value != None:
+                if reg & mask == value:
+                    if debug_print:
+                        debug(f"Register {name} 0x{offset:x} = 0x{reg:x} after {perf_counter() - timestamp:.001f} secs")
+                    return
+            else:
+                if reg & mask != not_value:
+                    if debug_print:
+                        debug(f"Register {name} 0x{offset:x} = 0x{reg:x} after {perf_counter() - timestamp:.001f} secs")
+                    return
+
             if loop_stamp - timestamp > timeout:
-                raise GpuError("Timed out polling register %s (%s), value %s is not the expected %s. Timeout %f secs" % (name, hex(offset), hex(reg), hex(value), timeout))
+                raise GpuPollTimeout(f"Timed out polling register {name} ({offset:#x}), value {reg:#x} is not the expected {value:#x}. Timeout {timeout:.1f} secs")
             if sleep_interval > 0.0:
                 time.sleep(sleep_interval)
 
@@ -3437,6 +3446,7 @@ class SoeFalcon(GpuFalcon):
 
 class OfaFalcon(GpuFalcon):
     def __init__(self, gpu):
+        self.no_outside_reset = True
         super().__init__("ofa", 0x844100, gpu)
 
     @property
@@ -3626,6 +3636,17 @@ class FspRpc(object):
         old_value = self.prc_knob_read(knob_id)
         if old_value != value:
             self.prc_knob_write(knob_id, value)
+
+    def fbdma_enable(self):
+        try:
+            self.send_cmd(0x22, [0x1], timeout=1)
+        except GpuRpcTimeout as err:
+            if self.device.is_hopper:
+                error(f"{self.device} Enabling DMA timed out. Most likely the GPU needs to be upgraded to FW >=96.00.B3.00.00")
+            raise
+
+    def fbdma_disable(self):
+        self.send_cmd(0x22, [0x0], timeout=1)
 
 
 class UnknownDevice(Exception):
@@ -3938,7 +3959,7 @@ class Gpu(NvidiaDevice):
         self.bar0_window_initialized = False
         self.bios = None
         self.falcons = None
-        self.falcon_dma_initialized = False
+        self.falcon_for_dma = None
         self.falcons_cfg = gpu_props.get("falcons_cfg", {})
         self.needs_falcons_cfg = gpu_props.get("needs_falcons_cfg", {})
         self.mse = None
@@ -4172,6 +4193,7 @@ class Gpu(NvidiaDevice):
 
         if self.mse:
             # After reset, MSE needs to be reinitialized, if used again.
+            self.mse.remove_atexit_cleanup()
             self.mse = None
 
     def get_memory_size(self):
@@ -4213,6 +4235,13 @@ class Gpu(NvidiaDevice):
         return ecc_on
 
     def query_final_ecc_state(self):
+        if self.is_hopper_plus:
+            self.wait_for_boot()
+            if self.is_ppcie_query_supported and self.query_ppcie_mode() == "on":
+                raise GpuError(f"{self} has PPCIE mode on and querying ECC is blocked")
+            if self.is_cc_query_supported and self.query_cc_mode() == "on":
+                raise GpuError(f"{self} has CC mode on and querying ECC is blocked")
+
         # To get the final ECC state, we need to wait for the memory to be
         # fully initialized. clear_memory() guarantees that.
         self.clear_memory()
@@ -4590,29 +4619,34 @@ class Gpu(NvidiaDevice):
         self.write(0x100f04, 0)
 
     def _falcon_dma_init(self):
+        if self.falcon_for_dma:
+            return self.falcon_for_dma
+
         self.init_falcons()
+
         if self.is_hopper_plus:
+            self._init_fsp_rpc()
+            self.fsp_rpc.fbdma_enable()
+
             if self.read_bad_ok(0x8443c0) >> 16 == 0xbadf:
                 raise GpuError(f"{self} does not support DMA with current FW.")
-            self.ofa = OfaFalcon(self)
-            falcon = self.ofa
+
+            falcon = OfaFalcon(self)
         elif hasattr(self, "gsp"):
             falcon = self.gsp
         else:
             falcon = self.pmu
 
-        if self.falcon_dma_initialized:
-            return falcon
-
-        debug(f"{self} Using falcon {falcon} for DMA")
-
         self.set_bus_master(True)
         if self.is_memory_clear_supported:
             self.clear_memory()
 
-        falcon.reset()
+        if not falcon.no_outside_reset:
+            falcon.reset()
 
-        self.falcon_dma_initialized = True
+        debug(f"{self} Using falcon {falcon} for DMA")
+
+        self.falcon_for_dma = falcon
         return falcon
 
     def dma_sys_write(self, address, data):
