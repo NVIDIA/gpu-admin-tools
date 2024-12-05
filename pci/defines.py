@@ -106,6 +106,26 @@ class PciUncorrectableErrors(Bitfield):
         # Print only the non zero bits
         return "%s %s" % (self.name, str(self.non_zero_fields()))
 
+PCI_ERR_COR_STATUS = 0x10
+PCI_ERR_COR_MASK = 0x14
+class PciCorrectableErrors(Bitfield):
+    size = 4
+    fields = {
+        "RECEIVER":         0x00000001,
+        "BAD_TLP":          0x00000040,
+        "BAD_DDLP":         0x00000080,
+        "REPLAY_ROLLOVER":  0x00000100,
+        "REPLAY_TIMER":     0x00001000,
+        "ADV_NON_FATAL":    0x00002000,
+        "INTERNAL":         0x00004000,
+        "LOG_OVERFLOW":     0x00008000,
+    }
+
+    def __str__(self):
+        # Print only the non zero bits
+        return f"{self.name} {self.non_zero_fields()}"
+
+
 PCI_EXP_DEVCAP2 = 36
 PCI_EXP_DEVCTL2 = 40
 class PciDevCtl2(Bitfield):
@@ -428,6 +448,82 @@ class PciLinkStatus(Bitfield):
 
     def __str__(self):
         return "{ Link status " + str(self.values()) + " raw " + hex(self.raw) + " }"
+
+# Link Status 2
+PCI_EXP_LNKSTA2 = 0x32
+class PciLinkStatus2(Bitfield):
+    size = 2
+    fields = {
+        "DEEMPHASIS_LEVEL": 0x1,
+        "EQ_COMPLETE": 0x2,
+        "EQ_1": 0x4,
+        "EQ_2": 0x8,
+        "EQ_3": 0x10,
+        "LINK_EQ_REQUEST": 0x20,
+        "RETIMER_PRESENT": 0x40,
+        "2_RETIMERS_PRESENT": 0x80,
+        "CROSSLINK_RESOLUTION": 0x300,
+        "FLIT_MODE_STATUS": 0x400,
+        "DOWNSTREAM_COMPONENT": 0x7000,
+        "DRS_MSG_RECEIVED": 0x8000,
+    }
+
+    def __str__(self):
+        return f"{{ Link status2 {self.values()} raw {self.raw:#x} }}"
+
+PCI_EXT_CAP_GEN4 = 0x26
+PCI_GEN4_STATUS = 0xc
+class PciGen4Status(Bitfield):
+    size = 2
+    fields = {
+        "EQ_COMPLETE": 0x1,
+        "EQ_1": 0x2,
+        "EQ_2": 0x4,
+        "EQ_3": 0x8,
+        "EQ_REQUEST": 0x10,
+    }
+
+    def __str__(self):
+        return f"{{ Gen4 status {self.values()} raw {self.raw:#x} }}"
+
+
+PCI_EXT_CAP_GEN5 = 0x2a
+
+PCI_GEN5_CAPS = 0x4
+class PciGen5Caps(Bitfield):
+    size = 2
+    fields = {
+        "EQ_BYPASS": 0x1,
+        "NO_EQ_NEEDED": 0x2,
+    }
+
+    def __str__(self):
+        return f"{{ Gen5 caps {self.values()} raw {self.raw:#x} }}"
+
+PCI_GEN5_CONTROL = 0x8
+class PciGen5Control(Bitfield):
+    size = 2
+    fields = {
+        "EQ_BYPASS_DISABLE": 0x1,
+        "NO_EQ_NEEDED_DISABLE": 0x2,
+    }
+
+    def __str__(self):
+        return f"{{ Gen5 control {self.values()} raw {self.raw:#x} }}"
+
+PCI_GEN5_STATUS = 0xc
+class PciGen5Status(Bitfield):
+    size = 2
+    fields = {
+        "EQ_COMPLETE": 0x1,
+        "EQ_1": 0x2,
+        "EQ_2": 0x4,
+        "EQ_3": 0x8,
+        "EQ_REQUEST": 0x10,
+    }
+
+    def __str__(self):
+        return f"{{ Gen5 status {self.values()} raw {self.raw:#x} }}"
 
 PCI_EXP_SLTCAP = 20
 PCI_EXP_SLTCTL = 24

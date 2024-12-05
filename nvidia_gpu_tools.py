@@ -43,6 +43,7 @@ from gpu.defines import *
 from pci.defines import *
 from gpu.prc import PrcKnob
 from gpu import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
+from gpu import GpuProperties
 
 if hasattr(time, "perf_counter"):
     perf_counter = time.perf_counter
@@ -64,7 +65,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.08.23o"
+VERSION = "v2024.12.04o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -284,16 +285,6 @@ GPU_MAP_MULTIPLE = {
             0x2237: "A10G",
         },
         "default": "A10",
-    },
-    0x180000a1: {
-        "devids": {
-            0x2330: "H100-SXM",
-            0x2336: "H100-SXM",
-            0x233f: "H100-SXM",
-            0x2322: "H800-PCIE",
-            0x2324: "H800-SXM",
-        },
-        "default": "H100-PCIE",
     },
 
 }
@@ -1112,59 +1103,8 @@ GPU_MAP = {
         },
     },
 
-    "H100-PCIE": {
-        "name": "H100-PCIE",
-        "arch": "hopper",
-        "pmu_reset_in_pmc": False,
-        "memory_clear_supported": True,
-        "forcing_ecc_on_after_reset_supported": True,
-        "nvdec": [],
-        "nvenc": [],
-        "other_falcons": ["fsp"],
-        "nvlink": {
-            "number": 18,
-            "links_per_group": 6,
-            "base_offset": 0xa00000,
-            "per_group_offset": 0x40000,
-        },
-        "needs_falcons_cfg": False,
-    },
-    "H100-SXM": {
-        "name": "H100-SXM",
-        "arch": "hopper",
-        "pmu_reset_in_pmc": False,
-        "memory_clear_supported": True,
-        "forcing_ecc_on_after_reset_supported": True,
-        "nvdec": [],
-        "nvenc": [],
-        "other_falcons": ["fsp"],
-        "nvlink": {
-            "number": 18,
-            "links_per_group": 6,
-            "base_offset": 0xa00000,
-            "per_group_offset": 0x40000,
-        },
-        "needs_falcons_cfg": False,
-    },
-    "H800-PCIE": {
-        "name": "H800-PCIE",
-        "arch": "hopper",
-        "pmu_reset_in_pmc": False,
-        "memory_clear_supported": True,
-        "forcing_ecc_on_after_reset_supported": True,
-        "nvdec": [],
-        "nvenc": [],
-        "other_falcons": ["fsp"],
-        "nvlink": {
-            "number": 18,
-            "links_per_group": 6,
-            "base_offset": 0xa00000,
-            "per_group_offset": 0x40000,
-        },
-        "needs_falcons_cfg": False,
-    },
-    "H800-SXM": {
-        "name": "H800-SXM",
+    0x180000a1: {
+        "name": "H100",
         "arch": "hopper",
         "pmu_reset_in_pmc": False,
         "memory_clear_supported": True,
@@ -1405,6 +1345,8 @@ class PciDevice(Device):
 
         self.vendor = self.config.read16(0)
         self.device = self.config.read16(2)
+        self.svid = self.config.read16(0x2c)
+        self.ssid = self.config.read16(0x2e)
         self.header_type = self.config.read8(0xe)
         self.cfg_space_broken = False
         self._init_caps()
@@ -1419,6 +1361,7 @@ class PciDevice(Device):
                 self.link_cap = DeviceField(PciLinkCap, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCAP)
                 self.link_ctl = DeviceField(PciLinkControl, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCTL)
                 self.link_status = DeviceField(PciLinkStatus, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKSTA)
+                self.link_status2 = DeviceField(PciLinkStatus2, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKSTA2)
                 # Root port or downstream port
                 if self.pciflags["TYPE"] == 0x4 or self.pciflags["TYPE"] == 0x6:
                     self.link_ctl_2 = DeviceField(PciLinkControl2, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCTL2)
@@ -1431,6 +1374,8 @@ class PciDevice(Device):
                 self.uncorr_status = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_STATUS, name="UNCOR_STATUS")
                 self.uncorr_mask   = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_MASK, name="UNCOR_MASK")
                 self.uncorr_sever  = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_SEVER, name="UNCOR_SEVER")
+                self.corr_status   = DeviceField(PciCorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_COR_STATUS, name="COR_STATUS")
+                self.corr_mask   = DeviceField(PciCorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_COR_MASK, name="COR_MASK")
             if self.has_pm():
                 self.pmctrl = DeviceField(PciPmControl, self.config, self.caps[PCI_CAP_ID_PM] + PCI_PM_CTRL)
             if self.has_acs():
@@ -1438,6 +1383,14 @@ class PciDevice(Device):
             if self.has_dpc():
                 self.dpc_ctrl   = DeviceField(DpcCtl, self.config, self.ext_caps[PCI_EXT_CAP_ID_DPC] + PCI_EXP_DPC_CTL)
                 self.dpc_status = DeviceField(DpcStatus, self.config, self.ext_caps[PCI_EXT_CAP_ID_DPC] + PCI_EXP_DPC_STATUS)
+
+            if self.has_pcie_gen4():
+                self.pci_gen4_status = DeviceField(PciGen4Status, self.config, self.ext_caps[PCI_EXT_CAP_GEN4] + PCI_GEN4_STATUS)
+
+            if self.has_pcie_gen5():
+                self.pci_gen5_status = DeviceField(PciGen5Status, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_STATUS)
+                self.pci_gen5_caps = DeviceField(PciGen5Caps, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CAPS)
+                self.pci_gen5_control = DeviceField(PciGen5Control, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CONTROL)
 
         if is_sysfs_available:
             self.parent = PciDevice.find_or_init(sysfs_find_parent(dev_path))
@@ -1481,6 +1434,12 @@ class PciDevice(Device):
 
     def has_pm(self):
         return PCI_CAP_ID_PM in self.caps
+
+    def has_pcie_gen4(self):
+        return PCI_EXT_CAP_GEN4 in self.ext_caps
+
+    def has_pcie_gen5(self):
+        return PCI_EXT_CAP_GEN5 in self.ext_caps
 
     def reinit(self):
         self.__init__(self.dev_path)
@@ -1609,7 +1568,12 @@ class PciDevice(Device):
 
         offset = PCI_CFG_SPACE_SIZE
         header = self.config.read32(PCI_CFG_SPACE_SIZE)
+        offsets = set()
         while offset != 0:
+            if offset in offsets:
+                warning(f"{self} extended cap loop at {offset:#x}")
+                return
+            offsets.add(offset)
             cap = header & 0xffff
             self.ext_caps[cap] = offset
 
@@ -1919,6 +1883,9 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self._mod_name = None
 
         self.knob_defaults = {}
+        self.is_pcie = False
+        self.is_sxm = False
+        self.has_c2c = False
 
         if self.parent:
             self.parent.children.append(self)
@@ -2434,16 +2401,17 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self._nvlink_query_enabled_links()
         links = self.nvlink_get_links_in_hs()
         link_states = Counter(self.nvlink_dl_get_link_states())
-        info(f"{self} {self.module_name} trained {len(links)} links {links} dl link states {link_states}")
-        topo = NVLINK_TOPOLOGY_HGX_8_H100
-        for link in self.nvlink_enabled_links:
-            # Some links may be enabled unexpectedly
-            if link in topo[self.module_name]:
-                peer_link, peer_name, _ = topo[self.module_name][link]
-            else:
-                peer_link = "?"
-                peer_name = "?"
-            info(f"{self} {self.module_name} link {link} -> {peer_name}:{peer_link} {self.nvlink_dl_get_link_state(link)} {self.nvlink_get_link_state(link)}")
+        info(f"{self} trained {len(links)} links {links} dl link states {link_states}")
+        if self.is_nvswitch() or (self.is_sxm and not self.has_c2c):
+            topo = NVLINK_TOPOLOGY_HGX_8_H100
+            for link in self.nvlink_enabled_links:
+                # Some links may be enabled unexpectedly
+                if link in topo[self.module_name]:
+                    peer_link, peer_name, _ = topo[self.module_name][link]
+                else:
+                    peer_link = "?"
+                    peer_name = "?"
+                info(f"{self} {self.module_name} link {link} -> {peer_name}:{peer_link} {self.nvlink_dl_get_link_state(link)} {self.nvlink_get_link_state(link)}")
         self.nvlink_debug_nvlipt_basic_state()
         self.nvlink_debug_minion_basic_state()
         self.nvlink_debug_nvlipt_lnk_basic_state()
@@ -3952,6 +3920,16 @@ class Gpu(NvidiaDevice):
             debug("%s sanity check failed", self)
             raise BrokenGpuError()
 
+        gpu_extra_props = GpuProperties(self.pmcBoot0, self.device, self.ssid).get_properties()
+        if gpu_extra_props['name'] != None:
+            self.name = gpu_extra_props['name']
+
+        if self.is_hopper:
+            self.is_sxm = "is_sxm" in gpu_extra_props["flags"]
+            self.is_pcie = "is_pcie" in gpu_extra_props["flags"]
+            self.has_c2c = "has_c2c" in gpu_extra_props["flags"]
+            self.has_module_id_bit_flip = "has_module_id_bit_flip" in gpu_extra_props["flags"]
+
         self._save_cfg_space()
         self.init_priv_ring()
 
@@ -4107,10 +4085,6 @@ class Gpu(NvidiaDevice):
         return GPU_ARCHES.index(self.arch) >= GPU_ARCHES.index("hopper")
 
     @property
-    def is_hopper_100(self):
-        return self.name in ["H100-PCIE", "H100-SXM"]
-
-    @property
     def is_blackwell(self):
         return GPU_ARCHES.index(self.arch) == GPU_ARCHES.index("blackwell")
 
@@ -4139,7 +4113,7 @@ class Gpu(NvidiaDevice):
 
     @property
     def is_module_name_supported(self):
-        return self.name == "H100-SXM"
+        return self.is_sxm
 
     @property
     def module_name(self):
@@ -4260,8 +4234,8 @@ class Gpu(NvidiaDevice):
             return "on"
         elif cc_state == 0x0:
             return "off"
-
-        raise GpuError(f"Unexpected CC state 0x{cc_reg}")
+        else:
+            return "invalid-devtools-only-fix-by-setting-cc-mode"
 
 
     def query_cc_mode(self):
@@ -4314,8 +4288,16 @@ class Gpu(NvidiaDevice):
 
         if self.is_hopper:
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
-        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
-        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
+
+        # Always enable CC mode knob first and disable it last. This prevents us
+        # from entering an invalid CC mode state where only the CCD knob is
+        # enabled.
+        if cc_mode == 0x1:
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
+        else:
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
+            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
 
 
     def query_cc_settings(self):

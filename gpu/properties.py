@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,6 +21,19 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
-from .fsp_emem_rpc import FspEmemRpc
-from .properties import GpuProperties
+from .devid_names import GPU_NAME_BY_DEVID
+from .devid_properties import GPU_PROPS_BY_DEVID
+
+class GpuProperties:
+	def __init__(self, boot0, devid, ssid):
+		self.boot0 = boot0
+		self.devid = devid
+		self.ssid = ssid
+
+	def get_properties(self):
+		name = GPU_NAME_BY_DEVID.get(self.devid, None)
+		props = GPU_PROPS_BY_DEVID.get((self.devid, self.ssid), [])
+		return {
+			"name": name,
+			"flags": props,
+		}
