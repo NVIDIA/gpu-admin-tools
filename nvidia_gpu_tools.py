@@ -65,7 +65,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.12.04o"
+VERSION = "v2024.12.06o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -4530,10 +4530,14 @@ class Gpu(NvidiaDevice):
         new_window = addr >> 16
         new_window &= ~0xf
         if sysmem:
+            assert not self.is_hopper_plus
             new_window |= NV_BAR0_WINDOW_CFG_TARGET_SYSMEM_COHERENT
         if self.bar0_window_base != new_window:
             self.bar0_window_base = new_window
-            self.write(NV_BAR0_WINDOW_CFG, new_window)
+            if self.is_hopper_plus:
+                self.write(0x10fd40, new_window)
+            else:
+                self.write(NV_BAR0_WINDOW_CFG, new_window)
         bar0_window_addr = NV_BAR0_WINDOW + (addr & 0xfffff)
         return bar0_window_addr
 
@@ -5239,6 +5243,7 @@ def main():
 
     if not opts.no_gpu:
         check_device_module_deps()
+
 
     if opts.gpu_bdf is not None:
         gpus, other = find_gpus(opts.gpu_bdf)

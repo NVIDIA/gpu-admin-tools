@@ -25,15 +25,15 @@ from .devid_names import GPU_NAME_BY_DEVID
 from .devid_properties import GPU_PROPS_BY_DEVID
 
 class GpuProperties:
-	def __init__(self, boot0, devid, ssid):
-		self.boot0 = boot0
-		self.devid = devid
-		self.ssid = ssid
+    def __init__(self, boot0, devid, ssid):
+        self.boot0 = boot0
+        self.devid = devid
+        self.ssid = ssid
 
-	def get_properties(self):
-		name = GPU_NAME_BY_DEVID.get(self.devid, None)
-		props = GPU_PROPS_BY_DEVID.get((self.devid, self.ssid), [])
-		return {
-			"name": name,
-			"flags": props,
-		}
+    def get_properties(self):
+        name = GPU_NAME_BY_DEVID.get(self.devid, None)
+        props = GPU_PROPS_BY_DEVID.get((self.devid, self.ssid), [])
+        return {
+            "name": name,
+            "flags": props,
+        }
