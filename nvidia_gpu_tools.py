@@ -24,6 +24,7 @@
 #
 
 from __future__ import print_function
+import collections
 import os
 import mmap
 import struct
@@ -31,7 +32,7 @@ from struct import Struct
 import time
 import sys
 import random
-import optparse
+import argparse
 import traceback
 from logging import debug, info, warning, error
 import logging
@@ -65,7 +66,7 @@ mmio_access_type = "devmem"
 
 bar0_from_file = None
 
-VERSION = "v2024.12.06o"
+VERSION = "v2024.12.13o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -121,10 +122,13 @@ def find_gpus_sysfs(bdf_pattern=None):
             dev = NvidiaDevice(dev_path=dev_path)
             other.append(dev)
             continue
+        except BrokenGpuErrorSecFault as err:
+            error(f"Device {dev_path} in sec fault boot={err.boot:#x} sec_fault={err.sec_fault:#x}")
+            dev = BrokenGpu(dev_path=dev_path, sec_fault=err.sec_fault)
         except Exception as err:
             _, _, tb = sys.exc_info()
             traceback.print_tb(tb)
-            error("GPU %s broken: %s", dev_path, str(err))
+            error(f"Device {dev_path} broken {err}")
             dev = BrokenGpu(dev_path=dev_path)
         gpus.append(dev)
 
@@ -1694,6 +1698,9 @@ class PciDevice(Device):
     def reset_post(self):
         pass
 
+    def read(self, reg):
+        return self.bar0.read32(reg)
+
 PCI_BRIDGE_CONTROL = 0x3e
 class PciBridgeControl(Bitfield):
     size = 1
@@ -1820,15 +1827,18 @@ GPU_CFG_SPACE_OFFSETS = [
 ]
 
 class BrokenGpu(PciDevice):
-    def __init__(self, dev_path):
+    def __init__(self, dev_path, sec_fault=None):
         super(BrokenGpu, self).__init__(dev_path)
         self.name = "BrokenGpu"
         self.cfg_space_working = False
         self.bars_configured = False
         self.cfg_space_working = self.sanity_check_cfg_space()
-        error("Config space working %s", str(self.cfg_space_working))
+        self.sec_fault = sec_fault
         if self.cfg_space_working:
             self.bars_configured = self.sanity_check_cfg_space_bars()
+
+        if self.sec_fault and self.bars_configured:
+            self.bar0 = self._map_bar(0)
 
         if self.parent:
             self.parent.children.append(self)
@@ -1848,6 +1858,8 @@ class BrokenGpu(PciDevice):
         return False
 
     def __str__(self):
+        if self.sec_fault:
+            return f"Device {self.bdf} {self.device:#x} in sec fault {self.sec_fault:#x}"
         return "GPU %s [broken, cfg space working %d bars configured %d]" % (self.bdf, self.cfg_space_working, self.bars_configured)
 
 class NvidiaDeviceInternal:
@@ -1886,6 +1898,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.is_pcie = False
         self.is_sxm = False
         self.has_c2c = False
+
+        self.units = {}
 
         if self.parent:
             self.parent.children.append(self)
@@ -2025,17 +2039,22 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         else:
             self.fsp_rpc = FspRpc(self.fsp, "emem", channel_num=2)
 
-    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None):
+    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None, trace=False):
         if (value and value >> 16 == 0xbadf) or badf_ok:
             read_function = self.read_bad_ok
         else:
             read_function = self.read
+
+        prev_value = None
 
         timestamp = perf_counter()
         while True:
             loop_stamp = perf_counter()
             try:
                 reg = read_function(offset)
+                if trace and reg != prev_value:
+                    debug(f"{self} observed new value for {offset:#x} = {reg:#x} after {(perf_counter() - timestamp)*1000:.1f} ms")
+                    prev_value = reg
             except:
                 error("Failed to read register %s (%s)", name, hex(offset))
                 raise
@@ -2129,6 +2148,42 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             return (lambda group, reg: self._nvlink_group_offset(group, reg))
         if unit == "minion":
             return (lambda group, reg: self._nvlink_minion_offset(group, reg))
+
+    @property
+    def device_info_instances(self):
+        assert self.is_hopper_plus
+
+        if self._device_info_instances is not None:
+            return self._device_info_instances
+
+
+        base = 0x22800
+
+        if self.is_blackwell:
+            max_size = 353
+        elif self.is_hopper:
+            max_size = 134
+
+        in_chain = False
+        devices = []
+        device = []
+        for offset in range(base, base + max_size * 4, 4):
+            data = self.read(offset)
+            if in_chain or data != 0:
+                device.append(data)
+            in_chain = data >> 31 == 1
+            if not in_chain and len(device) != 0:
+                devices.append(device)
+                device = []
+
+        self._device_info_instances = collections.defaultdict(list)
+
+        for d in devices:
+            device_type = (d[0] >> 24) & 0x7f
+            device_inst = (d[0] >> 16) & 0xff
+            self._device_info_instances[device_type].append(device_inst)
+
+        return self._device_info_instances
 
 
     def _nvlink_query_enabled_links(self):
@@ -3626,6 +3681,10 @@ class UnknownGpuError(Exception):
 class BrokenGpuError(Exception):
     pass
 
+class BrokenGpuErrorSecFault(Exception):
+    def __init__(self, boot, sec_fault):
+        self.boot = boot
+        self.sec_fault = sec_fault
 
 
 class NvSwitch(NvidiaDevice):
@@ -3652,8 +3711,8 @@ class NvSwitch(NvidiaDevice):
             raise BrokenGpuError()
 
         if self.pmcBoot0 not in NVSWITCH_MAP:
-            for off in [0x0, 0x88000, 0x88004]:
-                debug("%s offset 0x%x = 0x%x", self.bdf, off, self.read(off))
+            for off in [0x0, 0x88000, 0x88004, 0x92000, 0x8f0320]:
+                debug("%s offset 0x%x = 0x%x", self.bdf, off, self.read_bad_ok(off))
             raise UnknownGpuError("GPU %s %s bar0 %s" % (self.bdf, hex(self.pmcBoot0), hex(self.bar0_addr)))
 
         props = NVSWITCH_MAP[self.pmcBoot0]
@@ -3883,11 +3942,20 @@ class Gpu(NvidiaDevice):
         # Map just a small part of BAR1 as we don't need it all
         self.bar1 = self._map_bar(1, 1024 * 1024)
 
-        self.pmcBoot0 = self.read(NV_PMC_BOOT_0)
+        self.pmcBoot0 = self.read_bad_ok(NV_PMC_BOOT_0)
 
         if self.pmcBoot0 == 0xffffffff:
             debug("%s sanity check of bar0 failed", self)
             raise BrokenGpuError()
+        if self.pmcBoot0 in [0xbadf0200, 0xbad00200]:
+            if self.device >= 0x2900:
+
+                sec_fault = self.config.read32(0xb04)
+            elif self.device >= 0x22F0:
+                sec_fault = self.config.read32(0x2b4)
+
+            debug(f"{self} boot {self.pmcBoot0:#x} sec fault {sec_fault:#x}")
+            raise BrokenGpuErrorSecFault(self.pmcBoot0, sec_fault)
 
         gpu_map_key = self.pmcBoot0
 
@@ -3897,7 +3965,7 @@ class Gpu(NvidiaDevice):
             gpu_map_key = GPU_MAP_MULTIPLE[self.pmcBoot0]["devids"].get(self.device, match["default"])
 
         if gpu_map_key not in GPU_MAP:
-            for off in [0x0, 0x88000, 0x88004, 0x92000]:
+            for off in [0x0, 0x88000, 0x88004, 0x92000, 0x8f0320]:
                 debug("%s offset 0x%x = 0x%x", self.bdf, off, self.read_bad_ok(off))
             raise UnknownGpuError("GPU %s %s bar0 %s" % (self.bdf, hex(self.pmcBoot0), hex(self.bar0_addr)))
 
@@ -3925,13 +3993,26 @@ class Gpu(NvidiaDevice):
             self.name = gpu_extra_props['name']
 
         if self.is_hopper:
+            self.has_module_id_bit_flip = "has_module_id_bit_flip" in gpu_extra_props["flags"]
+        if self.is_hopper_plus:
             self.is_sxm = "is_sxm" in gpu_extra_props["flags"]
             self.is_pcie = "is_pcie" in gpu_extra_props["flags"]
             self.has_c2c = "has_c2c" in gpu_extra_props["flags"]
-            self.has_module_id_bit_flip = "has_module_id_bit_flip" in gpu_extra_props["flags"]
 
+        self._device_info_instances = None
         self._save_cfg_space()
         self.init_priv_ring()
+
+        if self.is_hopper_plus:
+            if self.has_c2c:
+                from gpu import GpuC2C, GpuC2CBlackwell
+                if self.is_blackwell_plus:
+                    self.c2c = GpuC2CBlackwell(self)
+                else:
+                    self.c2c = GpuC2C(self)
+
+        if self.is_blackwell and self.has_c2c:
+            self.name = "GB200"
 
         self.bar0_window_base = 0
         self.bar0_window_initialized = False
@@ -4350,8 +4431,10 @@ class Gpu(NvidiaDevice):
     def wait_for_boot(self):
         assert self.is_turing_plus
         if self.is_hopper_plus:
+
+            badf_ok = self.is_blackwell
             try:
-                self.poll_register("boot_complete", 0x200bc, 0xff, 5)
+                self.poll_register("boot_complete", 0x200bc, 0xff, 5, badf_ok=badf_ok)
             except GpuError as err:
                 _, _, tb = sys.exc_info()
                 debug("{} boot not done 0x{:x} = 0x{:x}".format(self, 0x200bc, self.read(0x200bc)))
@@ -4888,24 +4971,33 @@ class Gpu(NvidiaDevice):
 
     def read_module_id_h100(self):
 
-        if self.device in [0x2330, 0x2336, 0x2324, 0x233f]:
-            gpios = [0x9, 0x11, 0x12]
-        else:
-            raise GpuError(f"{self} has unknown mapping for module id")
+        assert self.is_sxm
+
+        gpios = [0x9, 0x11, 0x12]
 
         mod_id = 0
         for i, gpio in enumerate(gpios):
             bit = (self.read(0x21200 + 4 * gpio) >> 14) & 0x1
             mod_id |= bit << i
 
-        if self.device in [0x2330, 0x2336, 0x233f]:
+        if self.has_module_id_bit_flip:
             mod_id ^= 0x4
 
         return mod_id
 
+    def read_module_id_b100(self):
+        assert self.is_blackwell
+        self.init_mse()
+        info = self.mse.get_platform_info()
+        return info.moduleId
+
     def read_module_id(self):
-        if self.is_hopper_plus:
+        if self.is_hopper and self.is_sxm:
             return self.read_module_id_h100()
+        elif self.is_blackwell and self.is_sxm:
+            return self.read_module_id_b100()
+        else:
+            raise GpuError(f"{self} unknown module id")
 
 
     def debug_dump(self):
@@ -4938,6 +5030,10 @@ class Gpu(NvidiaDevice):
         for name, offset in offsets:
             data = self.read_bad_ok(offset)
             info(f"{self} {name} 0x{offset:x} = 0x{data:x}")
+
+        for unit in self.units.values():
+            info(f"{unit} debug print")
+            unit.debug_print()
 
 
     def __str__(self):
@@ -5112,100 +5208,103 @@ def sysfs_pci_rescan():
     with open("/sys/bus/pci/rescan", "w") as rf:
         rf.write("1")
 
+def auto_int(x):
+    return int(x, 0)
+
 def create_args():
-    argp = optparse.OptionParser(usage="usage: %prog [options]")
-    argp.add_option("--gpu", type="int", default=-1)
-    argp.add_option("--gpu-bdf", help="Select a single GPU by providing a substring of the BDF, e.g. '01:00'.")
-    argp.add_option("--gpu-name", help="Select a single GPU by providing a substring of the GPU name, e.g. 'T4'. If multiple GPUs match, the first one will be used.")
-    argp.add_option("--no-gpu", action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
-    argp.add_option("--log", type="choice", choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
-    argp.add_option("--mmio-access-type", type="choice", choices=['devmem', 'sysfs'], default='devmem',
+    argp = argparse.ArgumentParser(prog="nvidia_gpu_tools.py")
+    argp.add_argument("--gpu", type=auto_int, default=-1)
+    argp.add_argument("--gpu-bdf", help="Select a single GPU by providing a substring of the BDF, e.g. '01:00'.")
+    argp.add_argument("--gpu-name", help="Select a single GPU by providing a substring of the GPU name, e.g. 'T4'. If multiple GPUs match, the first one will be used.")
+    argp.add_argument("--no-gpu", action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
+    argp.add_argument("--log", choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
+    argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs'], default='devmem',
                       help="On Linux, specify whether to do MMIO through /dev/mem or /sys/bus/pci/devices/.../resourceN")
 
-    argp.add_option("--recover-broken-gpu", action='store_true', default=False,
+    argp.add_argument("--recover-broken-gpu", action='store_true', default=False,
                       help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
 broken from the beginning and hence correct config space wasn't saved then
 reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
-    argp.add_option("--reset-with-sbr", action='store_true', default=False,
+    argp.add_argument("--reset-with-sbr", action='store_true', default=False,
                       help="Reset the GPU with SBR and restore its config space settings, before any other actions")
-    argp.add_option("--reset-with-flr", action='store_true', default=False,
+    argp.add_argument("--reset-with-flr", action='store_true', default=False,
                       help="Reset the GPU with FLR and restore its config space settings, before any other actions")
-    argp.add_option("--reset-with-os", action='store_true', default=False,
+    argp.add_argument("--reset-with-os", action='store_true', default=False,
                       help="Reset with OS through /sys/.../reset")
-    argp.add_option("--remove-from-os", action='store_true', default=False,
+    argp.add_argument("--remove-from-os", action='store_true', default=False,
                       help="Remove from OS through /sys/.../remove")
-    argp.add_option("--unbind-gpu", action='store_true', default=False, help="Unbind GPU")
-    argp.add_option("--unbind-gpus", action='store_true', default=False, help="Unbind GPUs")
-    argp.add_option("--bind-gpu", help="Bind GPUs to the specified driver")
-    argp.add_option("--bind-gpus", help="Bind GPUs to the specified driver")
-    argp.add_option("--query-ecc-state", action='store_true', default=False,
+    argp.add_argument("--unbind-gpu", action='store_true', default=False, help="Unbind GPU")
+    argp.add_argument("--unbind-gpus", action='store_true', default=False, help="Unbind GPUs")
+    argp.add_argument("--bind-gpu", help="Bind GPUs to the specified driver")
+    argp.add_argument("--bind-gpus", help="Bind GPUs to the specified driver")
+    argp.add_argument("--query-ecc-state", action='store_true', default=False,
                       help="Query the ECC state of the GPU")
-    argp.add_option("--query-cc-mode", action='store_true', default=False,
+    argp.add_argument("--query-cc-mode", action='store_true', default=False,
                       help="Query the current Confidential Computing (CC) mode of the GPU.")
-    argp.add_option("--query-cc-settings", action='store_true', default=False,
+    argp.add_argument("--query-cc-settings", action='store_true', default=False,
                       help="Query the Confidential Computing (CC) settings of the GPU."
                       "This prints the lower level setting knobs that will take effect upon GPU reset.")
-    argp.add_option("--query-ppcie-mode", action='store_true', default=False,
+    argp.add_argument("--query-ppcie-mode", action='store_true', default=False,
                       help="Query the current Protected PCIe (PPCIe) mode of the GPU or switch.")
-    argp.add_option("--query-ppcie-settings", action='store_true', default=False,
+    argp.add_argument("--query-ppcie-settings", action='store_true', default=False,
                       help="Query the Protected PPCIe (PPCIe) settings of the GPU or switch."
                       "This prints the lower level setting knobs that will take effect upon GPU or switch reset.")
-    argp.add_option("--query-prc-knobs", action='store_true', default=False,
+    argp.add_argument("--query-prc-knobs", action='store_true', default=False,
                       help="Query all the Product Reconfiguration (PRC) knobs.")
-    argp.add_option("--set-cc-mode", type='choice', choices=["off", "on", "devtools"],
+    argp.add_argument("--set-cc-mode", choices=["off", "on", "devtools"],
                       help="Configure Confidentail Computing (CC) mode. The choices are off (disabled), on (enabled) or devtools (enabled in DevTools mode)."
                       "The GPU needs to be reset to make the selected mode active. See --reset-after-cc-mode-switch for one way of doing it.")
-    argp.add_option("--reset-after-cc-mode-switch", action='store_true', default=False,
+    argp.add_argument("--reset-after-cc-mode-switch", action='store_true', default=False,
                     help="Reset the GPU after switching CC mode such that it is activated immediately.")
-    argp.add_option("--test-cc-mode-switch", action='store_true', default=False,
+    argp.add_argument("--test-cc-mode-switch", action='store_true', default=False,
                     help="Test switching CC modes.")
-    argp.add_option("--reset-after-ppcie-mode-switch", action='store_true', default=False,
+    argp.add_argument("--reset-after-ppcie-mode-switch", action='store_true', default=False,
                     help="Reset the GPU or switch after switching PPCIe mode such that it is activated immediately.")
-    argp.add_option("--set-ppcie-mode", type='choice', choices=["off", "on"],
+    argp.add_argument("--set-ppcie-mode", choices=["off", "on"],
                       help="Configure Protected PCIe (PPCIe) mode. The choices are off (disabled) or on (enabled)."
                       "The GPU or switch needs to be reset to make the selected mode active. See --reset-after-ppcie-mode-switch for one way of doing it.")
-    argp.add_option("--test-ppcie-mode-switch", action='store_true', default=False,
+    argp.add_argument("--test-ppcie-mode-switch", action='store_true', default=False,
                     help="Test switching PPCIE mode.")
-    argp.add_option("--query-l4-serial-number", action='store_true', default=False,
+    argp.add_argument("--query-l4-serial-number", action='store_true', default=False,
                     help="Query the L4 certificate serial number without the MSB. The MSB could be either 0x41 or 0x40 based on the RoT returning the certificate chain.")
-    argp.add_option("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
-    argp.add_option("--clear-memory", action='store_true', default=False,
+    argp.add_argument("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
+    argp.add_argument("--clear-memory", action='store_true', default=False,
                       help="Clear the contents of the GPU memory. Supported on Pascal+ GPUs. Assumes the GPU has been reset with SBR prior to this operation and can be comined with --reset-with-sbr if not.")
 
-    argp.add_option("--debug-dump", action='store_true', default=False, help="Dump various state from the device for debug")
-    argp.add_option("--nvlink-debug-dump", action="store_true", help="Dump NVLINK debug state.")
-    argp.add_option("--knobs-reset-to-defaults-list", action='store_true', help="""Show the supported knobs and their default state""")
-    argp.add_option("--knobs-reset-to-defaults", action='append', help="""Set various device configuration knobs to defaults. Supported on Turing+ GPUs and NvSwitch_gen3. See --reset-knobs-to-defaults-query for the list of supported knobs and their defaults on a specific device.
+    argp.add_argument("--debug-dump", action='store_true', default=False, help="Dump various state from the device for debug")
+    argp.add_argument("--nvlink-debug-dump", action="store_true", help="Dump NVLINK debug state.")
+    argp.add_argument("--knobs-reset-to-defaults-list", action='store_true', help="""Show the supported knobs and their default state""")
+    argp.add_argument("--knobs-reset-to-defaults", action='append', help="""Set various device configuration knobs to defaults. Supported on Turing+ GPUs and NvSwitch_gen3. See --reset-knobs-to-defaults-query for the list of supported knobs and their defaults on a specific device.
 The option can be specified multiple times to list specific knobs or 'all' can be used to indicate all supported ones should be reset.""")
-    argp.add_option("--knobs-reset-to-defaults-assume-no-pending-changes", action='store_true', help="Indicate that the device was reset after last time any knobs were modified. This allows the reset to defaults to be slightly optimized by querying the current state")
-    argp.add_option("--knobs-reset-to-defaults-test", action='store_true', help="Test knob setting and resetting")
-    argp.add_option("--force-ecc-on-after-reset", action='store_true', default=False,
+    argp.add_argument("--knobs-reset-to-defaults-assume-no-pending-changes", action='store_true', help="Indicate that the device was reset after last time any knobs were modified. This allows the reset to defaults to be slightly optimized by querying the current state")
+    argp.add_argument("--knobs-reset-to-defaults-test", action='store_true', help="Test knob setting and resetting")
+    argp.add_argument("--force-ecc-on-after-reset", action='store_true', default=False,
                     help="Force ECC to be enabled after a subsequent GPU reset")
-    argp.add_option("--test-ecc-toggle", action='store_true', default=False,
+    argp.add_argument("--test-ecc-toggle", action='store_true', default=False,
                     help="Test toggling ECC mode.")
-    argp.add_option("--query-mig-mode", action='store_true', default=False,
+    argp.add_argument("--query-mig-mode", action='store_true', default=False,
                     help="Query whether MIG mode is enabled.")
-    argp.add_option("--force-mig-off-after-reset", action='store_true', default=False,
+    argp.add_argument("--force-mig-off-after-reset", action='store_true', default=False,
                     help="Force MIG mode to be disabled after a subsequent GPU reset")
-    argp.add_option("--test-mig-toggle", action='store_true', default=False,
+    argp.add_argument("--test-mig-toggle", action='store_true', default=False,
                     help="Test toggling MIG mode.")
-    argp.add_option("--block-nvlink", type='int', action='append',
+    argp.add_argument("--block-nvlink", type=auto_int, action='append',
                     help="Block the specified NVLink. Can be specified multiple times to block more NVLinks. NVLinks will be blocked until an SBR. Supported on A100 only.")
-    argp.add_option("--block-all-nvlinks", action='store_true', default=False,
+    argp.add_argument("--block-all-nvlinks", action='store_true', default=False,
                     help="Block all NVLinks. NVLinks will be blocked until a subsequent SBR. Supported on A100 only.")
-    argp.add_option("--dma-test", action='store_true', default=False,
+    argp.add_argument("--dma-test", action='store_true', default=False,
                     help="Check that GPUs are able to perform DMA to all/most of available system memory.")
-    argp.add_option("--test-pcie-p2p", action='store_true', default=False,
+    argp.add_argument("--test-pcie-p2p", action='store_true', default=False,
                     help="Check that all GPUs are able to perform DMA to each other.")
-    argp.add_option("--read-sysmem-pa", type='int', help="""Use GPU's DMA to read 32-bits from the specified sysmem physical address""")
-    argp.add_option("--write-sysmem-pa", type='int', nargs=2, help="""Use GPU's DMA to write specified 32-bits to the specified sysmem physical address""")
-    argp.add_option("--read-config-space", type='int', nargs=1, help="""Read 32-bits from device's config space at specified offset""")
-    argp.add_option("--write-config-space", type='int', nargs=2, help="""Write 32-bit to device's config space at specified offset""")
-    argp.add_option("--read-bar0", type='int', nargs=1, help="""Read 32-bits from GPU BAR0 at specified offset""")
-    argp.add_option("--write-bar0", type='int', nargs=2, help="""Write 32-bit to GPU BAR0 at specified offset""")
-    argp.add_option("--read-bar1", type='int', nargs=1, help="""Read 32-bits from GPU BAR1 at specified offset""")
-    argp.add_option("--write-bar1", type='int', nargs=2, help="""Write 32-bit to GPU BAR1 at specified offset""")
-    argp.add_option("--ignore-nvidia-driver", action='store_true', default=False, help="Do not treat nvidia driver apearing to be loaded as an error")
+    argp.add_argument("--read-sysmem-pa", type=auto_int, help="""Use GPU's DMA to read 32-bits from the specified sysmem physical address""")
+    argp.add_argument("--write-sysmem-pa", type=auto_int, nargs=2, help="""Use GPU's DMA to write specified 32-bits to the specified sysmem physical address""")
+    argp.add_argument("--read-config-space", type=auto_int, help="""Read 32-bits from device's config space at specified offset""")
+    argp.add_argument("--write-config-space", type=auto_int, nargs=2, help="""Write 32-bit to device's config space at specified offset""")
+    argp.add_argument("--read-bar0", type=auto_int, help="""Read 32-bits from GPU BAR0 at specified offset""")
+    argp.add_argument("--write-bar0", type=auto_int, nargs=2, help="""Write 32-bit to GPU BAR0 at specified offset""")
+    argp.add_argument("--read-bar1", type=auto_int, help="""Read 32-bits from GPU BAR1 at specified offset""")
+    argp.add_argument("--write-bar1", type=auto_int, nargs=2, help="""Write 32-bit to GPU BAR1 at specified offset""")
+    argp.add_argument("--ignore-nvidia-driver", action='store_true', default=False, help="Do not treat nvidia driver apearing to be loaded as an error")
 
     return argp
 
@@ -5215,7 +5314,7 @@ def init():
     global opts
 
     argp = create_args()
-    (opts, _) = argp.parse_args([])
+    opts = argp.parse_args([])
 
 def main():
     print(f"NVIDIA GPU Tools version {VERSION}")
@@ -5225,12 +5324,7 @@ def main():
     global opts
 
     argp = create_args()
-    (opts, args) = argp.parse_args()
-
-    if len(args) != 0:
-        print("ERROR: Exactly zero positional argument expected.")
-        argp.print_usage()
-        sys.exit(1)
+    opts = argp.parse_args()
 
     logging.basicConfig(level=getattr(logging, opts.log.upper()),
                         format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',

@@ -23,4 +23,5 @@
 
 from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
 from .fsp_emem_rpc import FspEmemRpc
+from .c2c import GpuC2C, GpuC2CBlackwell
 from .properties import GpuProperties

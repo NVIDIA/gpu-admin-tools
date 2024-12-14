@@ -21,48 +21,29 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-GPU_NAME_BY_DEVID = {
- 0x27B6: 'L2',
- 0x27B8: 'L4',
- 0x26B7: 'L20',
- 0x26BA: 'L20',
- 0x26B5: 'L40',
- 0x26B9: 'L40S',
- 0x26B8: 'L40G',
- 0x2313: 'H100',
- 0x2321: 'H100',
- 0x2330: 'H100',
- 0x2331: 'H100',
- 0x2336: 'H100',
- 0x2337: 'H100',
- 0x2338: 'H100',
- 0x2339: 'H100',
- 0x233D: 'H100',
- 0x2342: 'H100',
- 0x2313: 'H100',
- 0x2321: 'H100',
- 0x2330: 'H100',
- 0x2331: 'H100',
- 0x2336: 'H100',
- 0x2337: 'H100',
- 0x2338: 'H100',
- 0x2339: 'H100',
- 0x233D: 'H100',
- 0x2342: 'H100',
- 0x2335: 'H200',
- 0x233B: 'H200',
- 0x2342: 'GH200',
- 0x2343: 'GH200',
- 0x2345: 'GH200',
- 0x2348: 'GH200',
- 0x2322: 'H800',
- 0x2324: 'H800',
- 0x233A: 'H800',
- 0x2328: 'H20',
- 0x2329: 'H20',
- 0x2309: 'H20',
- 0x230C: 'H20',
- 0x230E: 'H20',
- 0x232C: 'H20',
- 0x2901: 'B200',
-}
+from .unit import GpuUnit
+
+from logging import info
+
+class GpuC2C(GpuUnit):
+    num_links = 10
+
+    def __init__(self, gpu):
+        super().__init__(gpu, "c2c")
+
+        self.instances = self.device.device_info_instances[0x19]
+
+    def firmware_status(self):
+        status = self.read(self.device.vbios_scratch_register(38))
+        if status == 0:
+            return "not started"
+        elif status == 0xff:
+            return "up"
+        else:
+            return f"fail {status:#x}"
+
+    def debug_print(self):
+        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
+
+class GpuC2CBlackwell(GpuC2C):
+    num_links = 14

@@ -70,14 +70,23 @@ class NiceStruct(metaclass=NiceStructMeta):
 
         return fmt
 
-    def pretty_print(self):
+    def get_pretty_value_dict(self):
+        pretty = {}
         for field in self._fields_:
             name = field[0]
             value = getattr(self, name, "Undefined")
             value_str = f"{value}"
             if isinstance(value, int):
                 value_str += f" ({value:#x})"
+            pretty[name] = value_str
+        return pretty
+
+    def pretty_print(self):
+        for name, value_str in self.get_pretty_value_dict().items():
             print(f"  {name}: {value_str}")
+
+    def __str__(self):
+        return f"{self.get_pretty_value_dict()}"
 
     def from_bytes(self, bytedata):
         unpacked_values = struct.unpack_from(self.fmt_string, bytedata)
@@ -122,8 +131,8 @@ class NiceStruct(metaclass=NiceStructMeta):
                 # specify all bits of the type they are using.
                 assert bitfield_counter == 0
 
-                if len(format_string) > 1 and format_string[:-1].isdigit():
-                    # Handle array-like fields
+                if len(format_string) > 1 and format_string[-1] != "s" and format_string[:-1].isdigit():
+                    # Handle array-like fields. Skip "s" as it's handled in a special way as bytes()
                     count = int(format_string[:-1])
                     values = unpacked_values[unpacked_pos:unpacked_pos+count]
                     setattr(self, name, values)
