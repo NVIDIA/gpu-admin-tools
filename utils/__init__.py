@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,4 +24,7 @@
 from .nice_struct import NiceStruct, NiceStructArray
 from .ints_to_bytes import *
 from .bitfield import Bitfield
+from .device_field import DeviceField
+from .file_map import FileMap
+from .file_raw import FileRaw
 from .formatted_tuple import FormattedTuple, formatted_tuple_from_data

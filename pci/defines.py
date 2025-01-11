@@ -611,3 +611,32 @@ class PciPmControl(Bitfield):
         "STATE": 0x0003,
         "NO_SOFT_RESET": 0x0008,
     }
+
+PCI_BRIDGE_CONTROL = 0x3e
+class PciBridgeControl(Bitfield):
+    size = 1
+    fields = {
+            # Enable parity detection on secondary interface
+            "PARITY": 0x01,
+
+            # The same for SERR forwarding
+            "SERR": 0x02,
+
+            # Enable ISA mode
+            "ISA": 0x04,
+
+            # Forward VGA addresses
+            "VGA": 0x08,
+
+            # Report master aborts
+            "MASTER_ABORT": 0x20,
+
+            # Secondary bus reset (SBR)
+            "BUS_RESET": 0x40,
+
+            # Fast Back2Back enabled on secondary interface
+            "FAST_BACK": 0x80,
+    }
+
+    def __str__(self):
+        return "{ Bridge control " + str(self.values()) + " raw " + hex(self.raw) + " }"

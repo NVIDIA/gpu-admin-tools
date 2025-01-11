@@ -40,8 +40,10 @@ from pathlib import Path
 
 from utils import int_from_data, data_from_int, bytearray_from_ints, ints_from_bytearray, read_ints_from_path
 from utils import formatted_tuple_from_data
+from utils import FileMap, FileRaw
 from gpu.defines import *
 from pci.defines import *
+from pci import PciDevice, PciDevices
 from gpu.prc import PrcKnob
 from gpu import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
 from gpu import GpuProperties
@@ -61,27 +63,11 @@ is_sysfs_available = is_linux
 if is_linux:
     import ctypes
 
-# By default use /dev/mem for MMIO, can be changed with --mmio-access-type sysfs
-mmio_access_type = "devmem"
-
 bar0_from_file = None
 
-VERSION = "v2024.12.13o"
+VERSION = "v2025.01.10o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
-
-def sysfs_find_parent(device):
-    # Get a sysfs path with PCIe topology like:
-    # /sys/devices/pci0000:00/0000:00:0d.0/0000:05:00.0/0000:06:00.0/0000:07:00.0
-    topo_path = os.path.realpath(device)
-
-    parent = os.path.dirname(topo_path)
-
-    # No more parents once we reach /sys/devices/pci*
-    if os.path.basename(parent).startswith("pci"):
-        return None
-
-    return parent
 
 def find_gpus_sysfs(bdf_pattern=None):
     gpus = []
@@ -122,6 +108,9 @@ def find_gpus_sysfs(bdf_pattern=None):
             dev = NvidiaDevice(dev_path=dev_path)
             other.append(dev)
             continue
+        except BrokenGpuErrorWithInfo as err:
+            error(f"Device {dev_path} broken: {err.err_info}")
+            dev = BrokenGpu(dev_path=dev_path, err_info=err.err_info)
         except BrokenGpuErrorSecFault as err:
             error(f"Device {dev_path} in sec fault boot={err.boot:#x} sec_fault={err.sec_fault:#x}")
             dev = BrokenGpu(dev_path=dev_path, sec_fault=err.sec_fault)
@@ -133,6 +122,8 @@ def find_gpus_sysfs(bdf_pattern=None):
         gpus.append(dev)
 
     return (gpus, other)
+
+
 
 
 def find_gpus(bdf=None):
@@ -151,98 +142,11 @@ class PageInfo(object):
         return pfn * self.page_size
 
 
-class FileRaw(object):
-    def __init__(self, path, offset, size):
-        self.fd = os.open(path, os.O_RDWR | os.O_SYNC)
-        self.base_offset = offset
-        self.size = size
-
-    def __del__(self):
-        if hasattr(self, "fd"):
-            os.close(self.fd)
-
-    def write(self, offset, data, size):
-        os.lseek(self.fd, offset, os.SEEK_SET)
-        os.write(self.fd, data_from_int(data, size))
-
-    def write8(self, offset, data):
-        self.write(offset, data, 1)
-
-    def write16(self, offset, data):
-        self.write(offset, data, 2)
-
-    def write32(self, offset, data):
-        self.write(offset, data, 4)
-
-    def read(self, offset, size):
-        os.lseek(self.fd, offset, os.SEEK_SET)
-        data = os.read(self.fd, size)
-        assert data, "offset %s size %d %s" % (hex(offset), size, data)
-        return int_from_data(data, size)
-
-    def read8(self, offset):
-        return self.read(offset, 1)
-
-    def read16(self, offset):
-        return self.read(offset, 2)
-
-    def read32(self, offset):
-        return self.read(offset, 4)
-
-    def read_format(self, fmt, offset):
-        size = struct.calcsize(fmt)
-        os.lseek(self.fd, offset, os.SEEK_SET)
-        data = os.read(self.fd, size)
-        return struct.unpack(fmt, data)
-
-class FileMap(object):
-
-    def __init__(self, path, offset, size):
-        self.size = size
-        with open(path, "r+b") as f:
-            prot = mmap.PROT_READ | mmap.PROT_WRITE
-            # Try mmap.mmap() first for error checking even if we end up using numpy
-            mapped = mmap.mmap(f.fileno(), size, mmap.MAP_SHARED, prot, offset=offset)
-            self.mapped = memoryview(mapped)
-            self.map_8 = self.mapped.cast("B")
-            self.map_16 = self.mapped.cast("H")
-            self.map_32 = self.mapped.cast("I")
-
-
-    def write8(self, offset, data):
-        self.map_8[offset // 1] = data
-
-    def write16(self, offset, data):
-        self.map_16[offset // 2] = data
-
-    def write32(self, offset, data):
-        self.map_32[offset // 4] = data
-
-    def read8(self, offset):
-        return self.map_8[offset // 1]
-
-    def read16(self, offset):
-        return self.map_16[offset // 2]
-
-    def read32(self, offset):
-        return self.map_32[offset // 4]
-
-    def read(self, offset, size):
-        if size == 1:
-            return self.read8(offset)
-        elif size == 2:
-            return self.read16(offset)
-        elif size == 4:
-            return self.read32(offset)
-        else:
-            raise ValueError(f"Unhandled read size {size}")
-
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
     pass
 
-
-GPU_ARCHES = ["kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper", "blackwell"]
+GPU_ARCHES = ["unknown", "kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper", "blackwell"]
 NVSWITCH_MAP = {
     0x6000a1: {
         "name": "LR10",
@@ -1127,17 +1031,6 @@ GPU_MAP = {
 
 }
 
-if is_linux:
-    import ctypes
-    libc = ctypes.cdll.LoadLibrary('libc.so.6')
-
-    # Set the mmap and munmap arg and return types.
-    # last mmap arg is off_t which ctypes doesn't have. Assume it's long as that what gcc defines it to.
-    libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_long]
-    libc.mmap.restype = ctypes.c_void_p
-    libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
-    libc.munmap.restype = ctypes.c_int
-
 class RawBitfield(object):
     def __init__(self, value=0):
         self.value = value
@@ -1188,652 +1081,15 @@ class GpuBitfield(RawBitfield):
     def commit(self):
         self.gpu.write(self.offset, self.value)
 
-class DeviceField(object):
-    """Wrapper for a device register/setting defined by a bitfield class and
-    accessible with dev.read()/write() at the specified offset"""
-    def __init__(self, bitfield_class, dev, offset, name=None):
-        self.dev = dev
-        self.offset = offset
-        self.bitfield_class = bitfield_class
-        self.size = bitfield_class.size
-        if name is None:
-            name = bitfield_class.__name__
-        self.name = name
-        self._read()
-
-    def _read(self):
-        raw = self.dev.read(self.offset, self.size)
-        self.value = self.bitfield_class(raw, name=self.name)
-        return self.value
-
-    def _write(self):
-        self.dev.write(self.offset, self.value.raw, self.size)
-
-    def __getitem__(self, field):
-        self._read()
-        return self.value[field]
-
-    def __setitem__(self, field, val):
-        self._read()
-        self.value[field] = val
-        self._write()
-
-    def write_only(self, field, val):
-        """Write to the device with only the field set as specified. Useful for W1C bits"""
-
-        bf = self.bitfield_class(0)
-        bf[field] = val
-        self.dev.write(self.offset, bf.raw, self.size)
-        self._read()
-
-    def write_raw(self, value):
-        self.value.raw = value
-        self._write()
-        self._read()
-
-    def __str__(self):
-        self._read()
-        return str(self.value)
-
-DEVICES = { }
-
-class Device(object):
-    def __init__(self):
-        self.parent = None
-        self.children = []
-
-    def is_hidden(self):
-        return True
-
-    def has_aer(self):
-        return False
-
-    def is_bridge(self):
-        return False
-
-    def is_root(self):
-        return self.parent == None
-
-    def is_gpu(self):
-        return False
-
-    def is_nvswitch(self):
-        return False
-
-    def is_plx(self):
-        return False
-
-    def is_intel(self):
-        return False
-
-    def has_dpc(self):
-        return False
-
-    def has_acs(self):
-        return False
-
-    def has_exp(self):
-        return False
-
-class PciDevice(Device):
-    @staticmethod
-    def _open_config(dev_path):
-        dev_path_config = os.path.join(dev_path, "config")
-        return FileRaw(dev_path_config, 0, os.path.getsize(dev_path_config))
-
-    @staticmethod
-    def find_class_for_device(dev_path):
-        pci_dev = PciDevice(dev_path)
-        if pci_dev.has_exp():
-            # Root port
-            if pci_dev.pciflags["TYPE"] == 0x4:
-                if pci_dev.vendor == 0x8086:
-                    return IntelRootPort
-                return PciBridge
-
-            # Upstream port
-            if pci_dev.pciflags["TYPE"] == 0x5:
-                # PlxBridge assumes full access to config space. If not full
-                # config space is available, fall back to a regular PciBridge.
-                if pci_dev.config.size >= 4096 and pci_dev.vendor == 0x10b5:
-                    return PlxBridge
-                return PciBridge
-
-            # Downstream port
-            if pci_dev.pciflags["TYPE"] == 0x6:
-                if pci_dev.config.size >= 4096 and pci_dev.vendor == 0x10b5:
-                    return PlxBridge
-                return PciBridge
-
-            # Endpoint
-            if pci_dev.pciflags["TYPE"] == 0x0:
-                if pci_dev.vendor == 0x10de:
-                    return Gpu
-
-        if pci_dev.header_type == 0x1:
-            return PciBridge
-        else:
-            if pci_dev.vendor == 0x10de:
-                return Gpu
-            return PciDevice
-
-    @staticmethod
-    def init_dispatch(dev_path):
-        cls = PciDevice.find_class_for_device(dev_path)
-        if cls:
-            return cls(dev_path)
-        return None
-
-    @staticmethod
-    def find_or_init(dev_path):
-        if dev_path == None:
-            if -1 not in DEVICES:
-                DEVICES[-1] = Device()
-            return DEVICES[-1]
-        bdf = os.path.basename(dev_path)
-        if bdf in DEVICES:
-            return DEVICES[bdf]
-        dev = PciDevice.init_dispatch(dev_path)
-        DEVICES[bdf] = dev
-        return dev
-
-    def _map_cfg_space(self):
-        return self._open_config(self.dev_path)
-
-    def __init__(self, dev_path):
-        self.parent = None
-        self.children = []
-        self.dev_path = dev_path
-        self.bdf = os.path.basename(dev_path)
-        self.config = self._map_cfg_space()
-
-        self.vendor = self.config.read16(0)
-        self.device = self.config.read16(2)
-        self.svid = self.config.read16(0x2c)
-        self.ssid = self.config.read16(0x2e)
-        self.header_type = self.config.read8(0xe)
-        self.cfg_space_broken = False
-        self._init_caps()
-        self._init_bars()
-        if not self.cfg_space_broken:
-            self.command = DeviceField(PciCommand, self.config, PCI_COMMAND)
-            if self.has_exp():
-                self.pciflags = DeviceField(PciExpFlags, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_FLAGS)
-                self.devcap = DeviceField(PciDevCap, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_DEVCAP)
-                self.devctl = DeviceField(PciDevCtl, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_DEVCTL)
-                self.devctl2 = DeviceField(PciDevCtl2, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_DEVCTL2)
-                self.link_cap = DeviceField(PciLinkCap, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCAP)
-                self.link_ctl = DeviceField(PciLinkControl, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCTL)
-                self.link_status = DeviceField(PciLinkStatus, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKSTA)
-                self.link_status2 = DeviceField(PciLinkStatus2, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKSTA2)
-                # Root port or downstream port
-                if self.pciflags["TYPE"] == 0x4 or self.pciflags["TYPE"] == 0x6:
-                    self.link_ctl_2 = DeviceField(PciLinkControl2, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_LNKCTL2)
-                if self.pciflags["TYPE"] == 4:
-                    self.rtctl = DeviceField(PciRootControl, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_RTCTL)
-                if self.pciflags["SLOT"] == 1:
-                    self.slot_ctl = DeviceField(PciSlotControl, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_SLTCTL)
-                    self.slot_status = DeviceField(PciSlotStatus, self.config, self.caps[PCI_CAP_ID_EXP] + PCI_EXP_SLTSTA)
-            if self.has_aer():
-                self.uncorr_status = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_STATUS, name="UNCOR_STATUS")
-                self.uncorr_mask   = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_MASK, name="UNCOR_MASK")
-                self.uncorr_sever  = DeviceField(PciUncorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_UNCOR_SEVER, name="UNCOR_SEVER")
-                self.corr_status   = DeviceField(PciCorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_COR_STATUS, name="COR_STATUS")
-                self.corr_mask   = DeviceField(PciCorrectableErrors, self.config, self.ext_caps[PCI_EXT_CAP_ID_ERR] + PCI_ERR_COR_MASK, name="COR_MASK")
-            if self.has_pm():
-                self.pmctrl = DeviceField(PciPmControl, self.config, self.caps[PCI_CAP_ID_PM] + PCI_PM_CTRL)
-            if self.has_acs():
-                self.acs_ctl = DeviceField(AcsCtl, self.config, self.ext_caps[PCI_EXT_CAP_ID_ACS] + PCI_EXT_ACS_CTL)
-            if self.has_dpc():
-                self.dpc_ctrl   = DeviceField(DpcCtl, self.config, self.ext_caps[PCI_EXT_CAP_ID_DPC] + PCI_EXP_DPC_CTL)
-                self.dpc_status = DeviceField(DpcStatus, self.config, self.ext_caps[PCI_EXT_CAP_ID_DPC] + PCI_EXP_DPC_STATUS)
-
-            if self.has_pcie_gen4():
-                self.pci_gen4_status = DeviceField(PciGen4Status, self.config, self.ext_caps[PCI_EXT_CAP_GEN4] + PCI_GEN4_STATUS)
-
-            if self.has_pcie_gen5():
-                self.pci_gen5_status = DeviceField(PciGen5Status, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_STATUS)
-                self.pci_gen5_caps = DeviceField(PciGen5Caps, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CAPS)
-                self.pci_gen5_control = DeviceField(PciGen5Control, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CONTROL)
-
-        if is_sysfs_available:
-            self.parent = PciDevice.find_or_init(sysfs_find_parent(dev_path))
-        else:
-            # Create a dummy device as the parent if sysfs is not available
-            self.parent = Device()
-
-    def _save_cfg_space(self):
-        self.saved_cfg_space = {}
-        for offset in GPU_CFG_SPACE_OFFSETS:
-            if offset >= self.config.size:
-                continue
-            self.saved_cfg_space[offset] = self.config.read32(offset)
-            #debug("%s saving cfg space %s = %s", self, hex(offset), hex(self.saved_cfg_space[offset]))
-
-    def _restore_cfg_space(self):
-        assert self.saved_cfg_space
-        for offset in sorted(self.saved_cfg_space):
-            old = self.config.read32(offset)
-            new = self.saved_cfg_space[offset]
-            #debug("%s restoring cfg space %s = %s to %s", self, hex(offset), hex(old), hex(new))
-            self.config.write32(offset, new)
-
-    def is_hidden(self):
-        return False
-
-    def has_aer(self):
-        return PCI_EXT_CAP_ID_ERR in self.ext_caps
-
-    def has_sriov(self):
-        return PCI_EXT_CAP_ID_SRIOV in self.ext_caps
-
-    def has_dpc(self):
-        return PCI_EXT_CAP_ID_DPC in self.ext_caps
-
-    def has_acs(self):
-        return PCI_EXT_CAP_ID_ACS in self.ext_caps
-
-    def has_exp(self):
-        return PCI_CAP_ID_EXP in self.caps
-
-    def has_pm(self):
-        return PCI_CAP_ID_PM in self.caps
-
-    def has_pcie_gen4(self):
-        return PCI_EXT_CAP_GEN4 in self.ext_caps
-
-    def has_pcie_gen5(self):
-        return PCI_EXT_CAP_GEN5 in self.ext_caps
-
-    def reinit(self):
-        self.__init__(self.dev_path)
-
-    def get_root_port(self):
-        dev = self.parent
-        while dev.parent != None and not dev.parent.is_hidden():
-            dev = dev.parent
-        return dev
-
-    def get_first_plx_parent(self):
-        dev = self.parent
-        while dev != None:
-            if dev.is_plx():
-                return dev
-            dev = dev.parent
-        return None
-
-    def _bar_num_to_sysfs_resource(self, barnum):
-        sysfs_num = barnum
-        # sysfs has gaps in case of 64-bit BARs
-        for b in range(barnum):
-            if self.bars[b][2]:
-                sysfs_num += 1
-        return sysfs_num
-
-    def _init_bars_sysfs(self):
-        self.bars = []
-        resources = open(os.path.join(self.dev_path, "resource")).readlines()
-
-        # Consider only first 6 resources
-        for bar_line in resources[:6]:
-            bar_line = bar_line.split(" ")
-            addr = int(bar_line[0], base=16)
-            end = int(bar_line[1], base=16)
-            flags = int(bar_line[2], base=16)
-            # Skip non-MMIO regions
-            if flags & 0x1 != 0:
-                continue
-            if addr != 0:
-                size = end - addr + 1
-                is_64bit = False
-                if (flags >> 1) & 0x3 == 0x2:
-                    is_64bit = True
-                self.bars.append((addr, size, is_64bit))
-
-    def _bar_reg_mask(self, offset, high):
-        all_1 = 0xffffffff
-        org = self.config.read32(offset)
-        self.config.write32(offset, all_1)
-        value = self.config.read32(offset)
-        self.config.write32(offset, org)
-        if not high:
-            value &= ~0xf
-        return value
-
-    def _bar_size_32(self, offset):
-        return (~self._bar_reg_mask(offset, high=False) & (2**32 - 1)) + 1
-
-    def _bar_size_64(self, offset):
-        mask = self._bar_reg_mask(offset, high=False) | (self._bar_reg_mask(offset + 4, high=True) << 32)
-        return (~mask & (2**64 - 1)) + 1
-
-    def _init_bars_config_space(self):
-        self.bars = []
-        if self.header_type == 0x0:
-            max_bars = 6
-        else:
-            max_bars = 2
-
-        bar_num = 0
-        while bar_num < max_bars:
-            bar_reg = self.config.read32(0x10 + bar_num * 4)
-            is_mmio = bar_reg & 0x1 == 0
-            if not is_mmio:
-                continue
-            is_64bit = (bar_reg >> 1) & 0x3 == 0x2
-            bar_addr = bar_reg & ~0xf
-            if is_64bit:
-                bar_addr |= self.config.read32(0x10 + (bar_num + 1) * 4) << 32
-                bar_size = self._bar_size_64(0x10 + bar_num * 4)
-                bar_num += 2
-            else:
-                bar_size = self._bar_size_32(0x10 + bar_num * 4)
-                bar_num += 1
-            if bar_addr != 0:
-                self.bars.append((bar_addr, bar_size, is_64bit))
-
-    def _init_bars(self):
-        if is_sysfs_available:
-            self._init_bars_sysfs()
-        else:
-            self._init_bars_config_space()
-
-    def _map_bar(self, bar_num, bar_size=None):
-        bar_addr = self.bars[bar_num][0]
-        if not bar_size:
-            bar_size = self.bars[bar_num][1]
-
-        if mmio_access_type == "sysfs":
-            return FileMap(os.path.join(self.dev_path, f"resource{self._bar_num_to_sysfs_resource(bar_num)}"), 0, bar_size)
-        else:
-            return FileMap("/dev/mem", bar_addr, bar_size)
-
-    def _init_caps(self):
-        self.caps = {}
-        self.ext_caps = {}
-        cap_offset = self.config.read8(PCI_CAPABILITY_LIST)
-        data = 0
-        if cap_offset == 0xff:
-            self.cfg_space_broken = True
-            error("Broken device %s", self.dev_path)
-            return
-        while cap_offset != 0:
-            data = self.config.read32(cap_offset)
-            cap_id = data & CAP_ID_MASK
-            self.caps[cap_id] = cap_offset
-            cap_offset = (data >> 8) & 0xff
-
-        self._init_ext_caps()
-
-
-    def _init_ext_caps(self):
-        if self.config.size <= PCI_CFG_SPACE_SIZE:
-            return
-
-        offset = PCI_CFG_SPACE_SIZE
-        header = self.config.read32(PCI_CFG_SPACE_SIZE)
-        offsets = set()
-        while offset != 0:
-            if offset in offsets:
-                warning(f"{self} extended cap loop at {offset:#x}")
-                return
-            offsets.add(offset)
-            cap = header & 0xffff
-            self.ext_caps[cap] = offset
-
-            offset = (header >> 20) & 0xffc
-            header = self.config.read32(offset)
-
-    def __str__(self):
-        return "PCI %s %s:%s" % (self.bdf, hex(self.vendor), hex(self.device))
-
-    def __hash__(self):
-        return hash((self.bdf, self.vendor, self.device))
-
-    def set_command_memory(self, enable):
-        self.command["MEMORY"] = 1 if enable else 0
-
-    def set_bus_master(self, enable):
-        self.command["MASTER"] = 1 if enable else 0
-
-    def cfg_read8(self, offset):
-        return self.config.read8(offset)
-
-    def cfg_read32(self, offset):
-        return self.config.read32(offset)
-
-    def cfg_write32(self, offset, data):
-        self.config.write32(offset, data)
-
-    def sanity_check_cfg_space(self):
-        # Use an offset unlikely to be intercepted in case of virtualization
-        vendor = self.config.read16(0xf0)
-        return vendor != 0xffff
-
-    def sanity_check_cfg_space_bars(self):
-        """Check whether BAR0 is configured"""
-        bar0 = self.config.read32(NV_XVE_BAR0)
-        if bar0 == 0:
-            return False
-        if bar0 == 0xffffffff:
-            return False
-        return True
-
-    def sysfs_power_control_get(self):
-        path = os.path.join(self.dev_path, "power", "control")
-        if not os.path.exists(path):
-            debug(f"{self} path not present: '{path}'")
-            return "not_present"
-        return open(path, "r").readlines()[0].strip()
-
-    def sysfs_power_control_set(self, mode):
-        path = os.path.join(self.dev_path, "power", "control")
-        if not os.path.exists(path):
-            debug("%s path not present: '%s'", self, path)
-            return
-        with open(path, "w") as f:
-            f.write(mode)
-
-    def sysfs_remove(self):
-        remove_path = os.path.join(self.dev_path, "remove")
-        if not os.path.exists(remove_path):
-            debug("%s remove not present: '%s'", self, remove_path)
-        with open(remove_path, "w") as f:
-            f.write("1")
-
-    def sysfs_rescan(self):
-        path = os.path.join(self.dev_path, "rescan")
-        if not os.path.exists(path):
-            debug("%s path not present: '%s'", self, path)
-        with open(path, "w") as f:
-            f.write("1")
-
-    def sysfs_unbind(self):
-        unbind_path = os.path.join(self.dev_path, "driver", "unbind")
-        if not os.path.exists(unbind_path):
-            debug("%s unbind not present: '%s', already unbound?", self, unbind_path)
-            return
-        with open(unbind_path, "w") as f:
-            f.write(self.bdf)
-        debug("%s unbind done", self)
-
-    def sysfs_bind(self, driver):
-        bind_path = os.path.join("/sys/bus/pci/drivers/", driver, "bind")
-        if not os.path.exists(bind_path):
-            debug("%s bind not present: '%s'", self, bind_path)
-            return
-        with open(bind_path, "w") as f:
-            f.write(self.bdf)
-        debug("%s bind to %s done", self, driver)
-
-    def sysfs_reset(self):
-        reset_path = os.path.join(self.dev_path, "reset")
-        if not os.path.exists(reset_path):
-            error("%s reset not present: '%s'", self, reset_path)
-        with open(reset_path, "w") as rf:
-            self.reset_pre()
-            rf.write("1")
-        debug(f"{self} reset via sysfs")
-
-        self.reset_post()
-
-    def reset_with_os(self):
-        if is_linux:
-            return self.sysfs_reset()
-
-        # For now fallback to a custom implementation on Windows
-        if self.is_flr_supported():
-            return self.reset_with_flr()
-        return self.reset_with_sbr()
-
-    def is_flr_supported(self):
-        if not self.has_exp():
-            return False
-
-        return self.devcap["FLR"] == 1
-
-    def reset_pre(self):
-        pass
-
-    def reset_post(self):
-        pass
-
-    def read(self, reg):
-        return self.bar0.read32(reg)
-
-PCI_BRIDGE_CONTROL = 0x3e
-class PciBridgeControl(Bitfield):
-    size = 1
-    fields = {
-            # Enable parity detection on secondary interface
-            "PARITY": 0x01,
-
-            # The same for SERR forwarding
-            "SERR": 0x02,
-
-            # Enable ISA mode
-            "ISA": 0x04,
-
-            # Forward VGA addresses
-            "VGA": 0x08,
-
-            # Report master aborts
-            "MASTER_ABORT": 0x20,
-
-            # Secondary bus reset (SBR)
-            "BUS_RESET": 0x40,
-
-            # Fast Back2Back enabled on secondary interface
-            "FAST_BACK": 0x80,
-    }
-
-    def __str__(self):
-        return "{ Bridge control " + str(self.values()) + " raw " + hex(self.raw) + " }"
-
-
-class PciBridge(PciDevice):
-    def __init__(self, dev_path):
-        super(PciBridge, self).__init__(dev_path)
-        self.bridge_ctl = DeviceField(PciBridgeControl, self.config, PCI_BRIDGE_CONTROL)
-        if self.parent:
-            self.parent.children.append(self)
-
-    def is_bridge(self):
-        return True
-
-    def _set_link_disable(self, disable):
-        self.link_ctl["LD"] = 1 if disable else 0
-        debug("%s %s link disable, %s", self, "setting" if disable else "unsetting", self.link_ctl)
-
-    def _set_sbr(self, reset):
-        self.bridge_ctl["BUS_RESET"] = 1 if reset else 0
-        debug("%s %s bus reset, %s",
-              self, "setting" if reset else "unsetting", self.bridge_ctl)
-
-    def toggle_link(self):
-        self._set_link_disable(True)
-        time.sleep(0.1)
-        self._set_link_disable(False)
-        time.sleep(0.1)
-
-    def toggle_sbr(self, sleep_after=True):
-        modified_slot_ctl = False
-        if self.has_exp() and self.pciflags["SLOT"] == 1:
-            saved_dll = self.slot_ctl["DLLSCE"]
-            saved_hpie = self.slot_ctl["HPIE"]
-            # Disable link state change notification
-            self.slot_ctl["DLLSCE"] = 0
-            self.slot_ctl["HPIE"] = 0
-            modified_slot_ctl = True
-
-        self._set_sbr(True)
-        time.sleep(0.1)
-        self._set_sbr(False)
-        if sleep_after:
-            time.sleep(0.3)
-
-        if modified_slot_ctl:
-            # Clear any pending interrupts for presence and link state
-            self.slot_status["PDC"] = 1
-            self.slot_status["DLLSC"] = 1
-
-            self.slot_ctl["DLLSCE"] = saved_dll
-            self.slot_ctl["HPIE"] = saved_hpie
-
-
-
-class IntelRootPort(PciBridge):
-    def __init__(self, dev_path):
-        super(IntelRootPort, self).__init__(dev_path)
-
-    def is_intel(self):
-        return True
-
-    def __str__(self):
-        return "Intel root port %s" % self.bdf
-
-
-
-class PlxBridge(PciBridge):
-    def __init__(self, dev_path):
-        super(PlxBridge, self).__init__(dev_path)
-
-
-    def __str__(self):
-        return "PLX %s" % self.bdf
-
-    def is_plx(self):
-        return True
-
-
-NV_XVE_DEV_CTRL = 0x4
-NV_XVE_BAR0 = 0x10
-NV_XVE_BAR1_LO = 0x14
-NV_XVE_BAR1_HI = 0x18
-NV_XVE_BAR2_LO = 0x1c
-NV_XVE_BAR2_HI = 0x20
-NV_XVE_BAR3 = 0x24
-NV_XVE_VCCAP_CTRL0 = 0x114
-
-GPU_CFG_SPACE_OFFSETS = [
-    NV_XVE_DEV_CTRL,
-    NV_XVE_BAR0,
-    NV_XVE_BAR1_LO,
-    NV_XVE_BAR1_HI,
-    NV_XVE_BAR2_LO,
-    NV_XVE_BAR2_HI,
-    NV_XVE_BAR3,
-    NV_XVE_VCCAP_CTRL0,
-]
-
 class BrokenGpu(PciDevice):
-    def __init__(self, dev_path, sec_fault=None):
-        super(BrokenGpu, self).__init__(dev_path)
-        self.name = "BrokenGpu"
+    def __init__(self, dev_path, sec_fault=None, err_info=None):
         self.cfg_space_working = False
         self.bars_configured = False
-        self.cfg_space_working = self.sanity_check_cfg_space()
         self.sec_fault = sec_fault
+        self.err_info = err_info
+        super(BrokenGpu, self).__init__(dev_path)
+        self.name = "BrokenGpu"
+        self.cfg_space_working = self.sanity_check_cfg_space()
         if self.cfg_space_working:
             self.bars_configured = self.sanity_check_cfg_space_bars()
 
@@ -1860,6 +1116,8 @@ class BrokenGpu(PciDevice):
     def __str__(self):
         if self.sec_fault:
             return f"Device {self.bdf} {self.device:#x} in sec fault {self.sec_fault:#x}"
+        if self.err_info:
+            return f"Device {self.bdf} {self.device:#x} broken {self.err_info}"
         return "GPU %s [broken, cfg space working %d bars configured %d]" % (self.bdf, self.cfg_space_working, self.bars_configured)
 
 class NvidiaDeviceInternal:
@@ -2010,11 +1268,15 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         return True
 
-    def reset_with_sbr(self):
+    def reset_with_sbr(self, retry_count=1, fail_callback=None):
         self.reset_pre(reset_with_flr=False)
 
         assert self.parent.is_bridge()
-        self.parent.toggle_sbr()
+        success = self.parent.toggle_sbr(retry_count=retry_count, fail_callback=fail_callback)
+        if not success:
+            return False
+        if not self.sanity_check_cfg_space():
+            return False
 
         self._restore_cfg_space()
         self.set_command_memory(True)
@@ -2039,11 +1301,12 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         else:
             self.fsp_rpc = FspRpc(self.fsp, "emem", channel_num=2)
 
-    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None, trace=False):
-        if (value and value >> 16 == 0xbadf) or badf_ok:
-            read_function = self.read_bad_ok
-        else:
-            read_function = self.read
+    def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None, trace=False, read_function=None):
+        if read_function is None:
+            if (value and value >> 16 == 0xbadf) or badf_ok:
+                read_function = self.read_bad_ok
+            else:
+                read_function = self.read
 
         prev_value = None
 
@@ -3681,6 +2944,10 @@ class UnknownGpuError(Exception):
 class BrokenGpuError(Exception):
     pass
 
+class BrokenGpuErrorWithInfo(BrokenGpuError):
+    def __init__(self, err_info):
+        self.err_info = err_info
+
 class BrokenGpuErrorSecFault(Exception):
     def __init__(self, boot, sec_fault):
         self.boot = boot
@@ -3942,16 +3209,30 @@ class Gpu(NvidiaDevice):
         # Map just a small part of BAR1 as we don't need it all
         self.bar1 = self._map_bar(1, 1024 * 1024)
 
+        self.arch = "unknown"
+
+        if self.device >= 0x2900 and self.device < 0x2a00:
+            self.arch = "blackwell"
+
+        elif self.device >= 0x22f0 and self.device < 0x2380:
+            self.arch = "hopper"
+
+        if self.is_blackwell_plus:
+            self.wait_for_bar_firewall()
+
         self.pmcBoot0 = self.read_bad_ok(NV_PMC_BOOT_0)
 
         if self.pmcBoot0 == 0xffffffff:
             debug("%s sanity check of bar0 failed", self)
             raise BrokenGpuError()
-        if self.pmcBoot0 in [0xbadf0200, 0xbad00200]:
-            if self.device >= 0x2900:
 
-                sec_fault = self.config.read32(0xb04)
-            elif self.device >= 0x22F0:
+        if self.pmcBoot0 in [0xbadf0200, 0xbad00200]:
+            if self.is_blackwell_plus:
+                if (0x10de, 0) in self.dvsec_caps:
+                    sec_fault = self.config_read_dvsec_cap(0x10de, 0x0, 0x14)
+                else:
+                    sec_fault = 0xcafebad0
+            elif self.is_hopper:
                 sec_fault = self.config.read32(0x2b4)
 
             debug(f"{self} boot {self.pmcBoot0:#x} sec fault {sec_fault:#x}")
@@ -4187,10 +3468,17 @@ class Gpu(NvidiaDevice):
     def is_in_recovery(self):
         if not self.is_hopper_plus:
             return False
-        flags = self.read(0x20120)
-        if flags != 0:
-            debug(f"{self} boot flags 0x{flags:x}")
-        return (flags >> 30) & 0x1 == 0x1
+        if self.is_hopper:
+            flags = self.read(0x20120)
+            if flags != 0:
+                debug(f"{self} boot flags 0x{flags:x}")
+            return (flags >> 30) & 0x1 == 0x1
+
+        status = self.read(0x8aa128)
+        if status & 0xff not in [0x0, 0x1]:
+            debug(f"{self} recovery status {status:#x}")
+            return True
+        return False
 
     @property
     def is_module_name_supported(self):
@@ -4428,13 +3716,33 @@ class Gpu(NvidiaDevice):
                 return True
         return False
 
+    def wait_for_bar_firewall(self):
+        assert self.is_blackwell_plus
+
+        if (0x10de, 0) in self.dvsec_caps:
+            mask = (0x1<<20)
+            self.poll_register("bar_firewall", self.dvsec_caps[0x10de, 0] + 0x8, value=0x0, timeout=5, mask=mask, read_function=self.config.read32)
+            return
+
+        if self.read_bad_ok(0) == 0xffffffff:
+            warning(f"{self} missing the DVSEC 10de:0 cap and BAR firewall might be active, falling back to 3s sleep")
+            time.sleep(3)
+            if self.read_bad_ok(0) == 0xffffffff:
+                error(f"{self} BAR0 still broken after 3s sleep")
+                raise BrokenGpuErrorWithInfo("Blackwell+ BAR0 not accessible and no DVSEC 10de:0 cap exposed")
+
     def wait_for_boot(self):
         assert self.is_turing_plus
         if self.is_hopper_plus:
 
             badf_ok = self.is_blackwell
+            timeout_value = 5
             try:
-                self.poll_register("boot_complete", 0x200bc, 0xff, 5, badf_ok=badf_ok)
+                if self.is_blackwell_plus:
+                    timeout_value = 10
+                    self.wait_for_bar_firewall()
+
+                self.poll_register("boot_complete", 0x200bc, 0xff, timeout_value, badf_ok=badf_ok)
             except GpuError as err:
                 _, _, tb = sys.exc_info()
                 debug("{} boot not done 0x{:x} = 0x{:x}".format(self, 0x200bc, self.read(0x200bc)))
@@ -5042,6 +4350,11 @@ class Gpu(NvidiaDevice):
     def __eq__(self, other):
         return self.bar0_addr == other.bar0_addr
 
+# Inject the Gpu class into devices module.
+# TODO: clean this up once Gpu is refactored out.
+from pci import devices
+devices.Gpu = Gpu
+
 
 def print_topo_indent(root, indent):
     if root.is_hidden():
@@ -5198,8 +4511,8 @@ def pcie_p2p_test(gpus):
 
 def print_topo():
     print("Topo:")
-    for c in DEVICES:
-        dev = DEVICES[c]
+    for c in PciDevices.DEVICES:
+        dev = PciDevices.DEVICES[c]
         if dev.is_root():
             print_topo_indent(dev, 1)
     sys.stdout.flush()
@@ -5218,8 +4531,9 @@ def create_args():
     argp.add_argument("--gpu-name", help="Select a single GPU by providing a substring of the GPU name, e.g. 'T4'. If multiple GPUs match, the first one will be used.")
     argp.add_argument("--no-gpu", action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
     argp.add_argument("--log", choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
-    argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs'], default='devmem',
-                      help="On Linux, specify whether to do MMIO through /dev/mem or /sys/bus/pci/devices/.../resourceN")
+    if is_linux:
+        argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs'], default='sysfs',
+                          help="On Linux, specify whether to do MMIO through /dev/mem or /sys/bus/pci/devices/.../resourceN")
 
     argp.add_argument("--recover-broken-gpu", action='store_true', default=False,
                       help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
@@ -5330,9 +4644,8 @@ def main():
                         format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d,%H:%M:%S')
 
-    global mmio_access_type
     if is_linux:
-        mmio_access_type = opts.mmio_access_type
+        PciDevice.mmio_access_type = opts.mmio_access_type
 
 
     if not opts.no_gpu:

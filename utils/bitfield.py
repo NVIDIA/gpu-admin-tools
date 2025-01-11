@@ -80,6 +80,12 @@ class Bitfield(object):
     def __str__(self):
         return self.name + " " + str(self.values()) + " raw " + hex(self.raw)
 
+    def __eq__(self, other):
+        if other == None:
+            return False
+
+        return self.name == other.name and self.raw == other.raw
+
     def values(self):
         vals = {}
         for f in self.__class__.fields:
