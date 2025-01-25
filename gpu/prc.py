@@ -87,9 +87,9 @@ class PrcKnob(Enum):
 
     PRC_KNOB_ID_34                                      = 34
 
-    PRC_KNOB_ID_35                                      = 35
+    PRC_KNOB_ID_FORCE_RESET_COUPLING_ALLOW_INB          = 35
 
-    PRC_KNOB_ID_36                                      = 36
+    PRC_KNOB_ID_FORCE_RESET_COUPLING                    = 36
 
     PRC_KNOB_ID_37                                      = 37
 

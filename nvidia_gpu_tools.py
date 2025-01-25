@@ -65,7 +65,7 @@ if is_linux:
 
 bar0_from_file = None
 
-VERSION = "v2025.01.10o"
+VERSION = "v2025.01.24o"
 
 SYS_DEVICES = "/sys/bus/pci/devices/"
 
@@ -1152,6 +1152,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.fsp_rpc = None
         self._mod_name = None
 
+        self.is_reset_coupling_supported = False
+
         self.knob_defaults = {}
         self.is_pcie = False
         self.is_sxm = False
@@ -1300,6 +1302,9 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             self.fsp_rpc = FspRpc(self.fsp, "mnoc", channel_num=0)
         else:
             self.fsp_rpc = FspRpc(self.fsp, "emem", channel_num=2)
+
+        if self.is_gpu() and self.is_hopper:
+            self.fsp_rpc_mods = FspRpc(self.fsp, "emem", channel_num=1)
 
     def poll_register(self, name, offset, value, timeout, sleep_interval=0.01, mask=0xffffffff, debug_print=False, badf_ok=False, not_value=None, trace=False, read_function=None):
         if read_function is None:
@@ -1990,6 +1995,29 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         self.set_ppcie_mode(org_mode)
         self.reset_with_os()
+
+    def set_next_sbr_to_fundamental_reset(self):
+        assert self.is_reset_coupling_supported
+
+        self._init_fsp_rpc()
+        if self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_FORCE_RESET_COUPLING.value) == 0:
+            if self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_FORCE_RESET_COUPLING_ALLOW_INB.value) == 0:
+                error(f"{self} reset coupling is disabled and not allowed to be enabled through in-band. Please enable the 'Force test coupling' permissions through out-of-band APIs.")
+                return False
+
+            self.fsp_rpc.prc_knob_write(PrcKnob.PRC_KNOB_ID_FORCE_RESET_COUPLING.value, 1)
+
+        if self.is_hopper:
+            reset_regs = [0x91238]
+        elif self.is_blackwell_plus:
+            reset_regs = [0x80840, 0x80844]
+        reset_settings = ", ".join([f"{o:#x} = {self.read_bad_ok(o):#x}" for o in reset_regs])
+        debug(f"{self} reset settings before coupling {reset_settings}")
+        self.fsp_rpc_mods.prc_couple_reset()
+        reset_settings = ", ".join([f"{o:#x} = {self.read_bad_ok(o):#x}" for o in reset_regs])
+        debug(f"{self} reset settings after coupling {reset_settings}")
+
+        return True
 
 class GpuMemPort(object):
     def __init__(self, name, mem_control_reg, max_size, falcon):
@@ -2879,6 +2907,17 @@ class FspRpc(object):
         if len(data) != 0:
             raise GpuError(f"RPC wrong response size {len(data)}. Data {[hex(d) for d in data]}")
 
+    def prc_couple_reset(self):
+        prc = 0x4
+        # One shot
+        prc |= 0x1 << 8
+
+        prc |= 0x1 << 16
+
+        data = self.prc_cmd([prc])
+        if len(data) != 0:
+            raise GpuError(f"RPC wrong response size {len(data)}. Data {[hex(d) for d in data]}")
+
     def prc_knob_read(self, knob_id):
         # Knob read is sub msg 0xc
         prc = 0xc
@@ -3239,6 +3278,10 @@ class Gpu(NvidiaDevice):
             raise BrokenGpuErrorSecFault(self.pmcBoot0, sec_fault)
 
         gpu_map_key = self.pmcBoot0
+        if gpu_map_key == 0 and self.is_hopper and self.is_in_recovery():
+            # Hardcode H100 value as we detected a hopper GPU in recovery
+            gpu_map_key = 0x180000a1
+            debug(f"{self} is in recovery, overriding to H100 chip")
 
         if gpu_map_key in GPU_MAP_MULTIPLE:
             match = GPU_MAP_MULTIPLE[self.pmcBoot0]
@@ -3261,6 +3304,7 @@ class Gpu(NvidiaDevice):
         self.is_ecc_query_supported = self.is_memory_clear_supported
         self.is_cc_query_supported = self.is_hopper_plus
         self.is_ppcie_query_supported = self.is_hopper
+        self.is_reset_coupling_supported = self.is_hopper
         self.is_bar0_firewall_supported = self.is_blackwell_plus
         self.is_forcing_ecc_on_after_reset_supported = gpu_props["forcing_ecc_on_after_reset_supported"]
         self.is_setting_ecc_after_reset_supported = self.is_ampere_plus
@@ -3472,6 +3516,10 @@ class Gpu(NvidiaDevice):
             flags = self.read(0x20120)
             if flags != 0:
                 debug(f"{self} boot flags 0x{flags:x}")
+            boot = self.read_bad_ok(0x0)
+            if boot == 0:
+                debug(f"{self} BAR0 offset 0x0 is 0, which implies recovery mode")
+                return True
             return (flags >> 30) & 0x1 == 0x1
 
         status = self.read(0x8aa128)
@@ -3668,6 +3716,25 @@ class Gpu(NvidiaDevice):
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
 
+    def query_bar0_firewall_mode(self):
+        assert self.is_bar0_firewall_supported
+
+        config = self.read(0x590)
+        if config & 0x4 == 0x4:
+            return "on"
+        else:
+            return "off"
+
+    def set_bar0_firewall_mode(self, mode):
+        assert self.is_bar0_firewall_supported
+
+        self._init_fsp_rpc()
+        if mode == "on":
+            bar0_decoupler_val = 0x2
+        else:
+            bar0_decoupler_val = 0x0
+
+        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
 
     def query_cc_settings(self):
         assert self.is_cc_query_supported
@@ -4539,6 +4606,8 @@ def create_args():
                       help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
 broken from the beginning and hence correct config space wasn't saved then
 reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
+    argp.add_argument("--set-next-sbr-to-fundamental-reset", action='store_true', default=False,
+                      help="Configure the GPU to make the next SBR same as fundamental reset. After the SBR this setting resets back to False. Supported on H100 only.")
     argp.add_argument("--reset-with-sbr", action='store_true', default=False,
                       help="Reset the GPU with SBR and restore its config space settings, before any other actions")
     argp.add_argument("--reset-with-flr", action='store_true', default=False,
@@ -4579,6 +4648,10 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       "The GPU or switch needs to be reset to make the selected mode active. See --reset-after-ppcie-mode-switch for one way of doing it.")
     argp.add_argument("--test-ppcie-mode-switch", action='store_true', default=False,
                     help="Test switching PPCIE mode.")
+    argp.add_argument("--set-bar0-firewall-mode", choices=["off", "on"],
+                    help="Configure BAR0 firewall mode. The choices are off (disabled) or on (enabled).")
+    argp.add_argument("--query-bar0-firewall-mode", action='store_true', default=False,
+                    help="Query the current BAR0 firewall mode of the GPU. Blackwell+ only.")
     argp.add_argument("--query-l4-serial-number", action='store_true', default=False,
                     help="Query the L4 certificate serial number without the MSB. The MSB could be either 0x41 or 0x40 based on the RoT returning the certificate chain.")
     argp.add_argument("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
@@ -4765,6 +4838,15 @@ def main():
             return
 
 
+    if opts.set_next_sbr_to_fundamental_reset:
+        if not gpu.is_reset_coupling_supported:
+            error(f"{gpu} does not support reset coupling")
+            sys.exit(1)
+        if not gpu.set_next_sbr_to_fundamental_reset():
+            error(f"{gpu} failed to configure next SBR to fundamental reset")
+            sys.exit(1)
+        info(f"{gpu} configured next SBR to fundamental reset")
+
     # Reset the GPU with SBR, if requested
     if opts.reset_with_sbr:
         if not gpu.parent.is_bridge():
@@ -4906,6 +4988,31 @@ def main():
         ppcie_mode = gpu.query_ppcie_mode()
         info(f"{gpu} PPCIe mode is {ppcie_mode}")
 
+    if opts.query_bar0_firewall_mode:
+        if not gpu.is_bar0_firewall_supported:
+            error(f"Querying BAR0 firewall mode is not supported on {gpu}")
+            sys.exit(1)
+
+        bar0_firewall_mode = gpu.query_bar0_firewall_mode()
+        info(f"{gpu} BAR0 firewall mode is {bar0_firewall_mode}")
+
+    if opts.set_bar0_firewall_mode:
+        if not gpu.is_bar0_firewall_supported:
+            error(f"Configuring BAR0 firewall is not supported on {gpu}")
+            sys.exit(1)
+        try:
+            gpu.set_bar0_firewall_mode(opts.set_bar0_firewall_mode)
+        except GpuError as err:
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            prc_knobs = gpu.query_prc_knobs()
+            debug(f"{gpu} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+
+        info(f"{gpu} BAR0 firewall mode set to {opts.set_bar0_firewall_mode}. It will be active after device reset.")
 
     if opts.test_cc_mode_switch:
         if not gpu.is_gpu() or not gpu.is_cc_query_supported:
