@@ -22,6 +22,9 @@
 #
 
 from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
+from .error import UnknownDevice, UnknownGpuError, BrokenGpuError, BrokenGpuErrorWithInfo, BrokenGpuErrorSecFault
 from .fsp_emem_rpc import FspEmemRpc
 from .c2c import GpuC2C, GpuC2CBlackwell
 from .properties import GpuProperties
+from .fsp_mnoc_rpc import FspMnocRpc
+from .mse import MseRpc

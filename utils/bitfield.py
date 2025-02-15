@@ -21,11 +21,10 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-import platform
-is_linux = platform.system() == "Linux"
+from utils import platform_config
 
 # Use libc's ffs() on Linux and fall back to a native implementation otherwise.
-if is_linux:
+if platform_config.is_linux:
     import ctypes
     libc = ctypes.cdll.LoadLibrary('libc.so.6')
 

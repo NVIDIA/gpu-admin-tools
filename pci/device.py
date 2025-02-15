@@ -28,8 +28,7 @@ from logging import debug, warning, error
 from utils import DeviceField, FileRaw, FileMap
 from .defines import *
 
-is_linux = platform.system() == "Linux"
-is_sysfs_available = is_linux
+from utils import platform_config
 
 NV_XVE_DEV_CTRL = 0x4
 NV_XVE_BAR0 = 0x10
@@ -159,7 +158,7 @@ class PciDevice(Device):
                 self.pci_gen5_caps = DeviceField(PciGen5Caps, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CAPS)
                 self.pci_gen5_control = DeviceField(PciGen5Control, self.config, self.ext_caps[PCI_EXT_CAP_GEN5] + PCI_GEN5_CONTROL)
 
-        if is_sysfs_available:
+        if platform_config.is_sysfs_available:
             from .devices import PciDevices
             from utils.sysfs import sysfs_find_parent
             self.parent = PciDevices.find_or_init(sysfs_find_parent(dev_path))
@@ -302,7 +301,7 @@ class PciDevice(Device):
                 self.bars.append((bar_addr, bar_size, is_64bit))
 
     def _init_bars(self):
-        if is_sysfs_available:
+        if platform_config.is_sysfs_available:
             self._init_bars_sysfs()
         else:
             self._init_bars_config_space()
@@ -487,7 +486,7 @@ class PciDevice(Device):
         self.reset_post()
 
     def reset_with_os(self):
-        if is_linux:
+        if platform_config.is_linux:
             return self.sysfs_reset()
 
         # For now fallback to a custom implementation on Windows

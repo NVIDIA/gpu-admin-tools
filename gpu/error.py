@@ -21,6 +21,24 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+class UnknownDevice(Exception):
+    pass
+
+class UnknownGpuError(Exception):
+    pass
+
+class BrokenGpuError(Exception):
+    pass
+
+class BrokenGpuErrorWithInfo(BrokenGpuError):
+    def __init__(self, err_info):
+        self.err_info = err_info
+
+class BrokenGpuErrorSecFault(Exception):
+    def __init__(self, boot, sec_fault):
+        self.boot = boot
+        self.sec_fault = sec_fault
+
 class GpuError(Exception):
     pass
 

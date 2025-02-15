@@ -36,6 +36,9 @@ class PciBridge(PciDevice):
         if self.parent:
             self.parent.children.append(self)
 
+    def __str__(self):
+        return f"PciBridge {self.bdf} {self.device:x}:{self.vendor:x}"
+
     def is_bridge(self):
         return True
 

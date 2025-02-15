@@ -23,6 +23,7 @@
 
 from .devid_names import GPU_NAME_BY_DEVID
 from .devid_properties import GPU_PROPS_BY_DEVID
+from .devid_chips import GPU_DEVID_CHIPS
 
 class GpuProperties:
     def __init__(self, boot0, devid, ssid):
@@ -37,3 +38,10 @@ class GpuProperties:
             "name": name,
             "flags": props,
         }
+
+    @staticmethod
+    def get_chip_family(devid):
+        for devid_low, devid_high, arch, chip in GPU_DEVID_CHIPS:
+            if devid >= devid_low and devid <= devid_high:
+                return arch, chip
+        return None, None

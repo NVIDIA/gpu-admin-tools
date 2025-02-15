@@ -23,10 +23,9 @@
 
 import mmap
 
-import platform
-is_linux = platform.system() == "Linux"
+from utils import platform_config
 
-if is_linux:
+if platform_config.is_linux:
     import ctypes
     libc = ctypes.cdll.LoadLibrary('libc.so.6')
 
