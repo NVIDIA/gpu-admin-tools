@@ -1944,6 +1944,7 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         return True
 
+
 class GpuMemPort(object):
     def __init__(self, name, mem_control_reg, max_size, falcon):
         self.name = name
@@ -2770,7 +2771,7 @@ class FspRpc(object):
         if not sync:
             return
 
-        mdata = self.transport.receive_data()
+        mdata = self.transport.receive_data(timeout)
         msize = len(mdata) * 4
         debug(f"{self} response {[hex(d) for d in mdata]}")
 
@@ -2906,6 +2907,59 @@ class FspRpc(object):
     def fbdma_disable(self):
         self.send_cmd(0x22, [0x0], timeout=1)
 
+    def inforom_read(self, object_name, object_size, object_offset):
+        import struct
+
+        inforom_msg_struct = struct.Struct("<BB3sHH")
+        object_name = object_name.encode('utf-8')[:3].ljust(3, b'\x00')
+        packed_message = inforom_msg_struct.pack(
+            0x03,
+            0xFF,
+            object_name,
+            object_size,
+            object_offset
+        )
+
+        send_message = []
+        for i in range(0, len(packed_message), 4):
+            send_message.append(int.from_bytes(packed_message[i:i+4], byteorder='little'))
+
+        return self.send_cmd(0x17, send_message, timeout=5)
+
+    def inforom_write(self, object_name, object_size, object_offset, data):
+        import struct
+
+        inforom_msg_struct = struct.Struct("<BB3sHH")
+        object_name = object_name.encode('utf-8')[:3].ljust(3, b'\x00')
+        packed_message = inforom_msg_struct.pack(
+            0x04,
+            0xFF,
+            object_name,
+            object_size,
+            object_offset
+        )
+
+        send_message = [
+            int.from_bytes(packed_message[0:4], byteorder='little'),
+            int.from_bytes(packed_message[4:8], byteorder='little')
+        ]
+
+        # Get the last byte (`00` from `object_offset`)
+        last_byte = packed_message[8]
+
+        # Convert data to bytes
+        data_bytes = b''.join(struct.pack("<I", d) for d in data)
+
+        send_message.append(int.from_bytes(bytes([last_byte]) + data_bytes[:3], byteorder='little'))
+
+        # Process remaining `data` bytes in 32-bit chunks
+        for i in range(3, len(data_bytes), 4):
+            send_message.append(int.from_bytes(data_bytes[i:i+4], byteorder='little'))
+
+        self.send_cmd(0x17, send_message, timeout=5)
+
+    def recreate_inforom_fs(self):
+        self.send_cmd(0x17, [0x5], timeout=10)
 
 class NvSwitch(NvidiaDevice):
     def __init__(self, dev_path):

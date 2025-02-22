@@ -50,7 +50,7 @@ else:
 if platform_config.is_linux:
     import ctypes
 
-VERSION = "v2025.02.15o"
+VERSION = "v2025.02.21o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():

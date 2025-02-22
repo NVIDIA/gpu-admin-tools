@@ -62,7 +62,7 @@ class GpuMnoc:
         self.device.poll_register(f"{self} message ready", self.offset_info_send_mbox, value=0x1<<24, timeout=timeout, mask=0x1<<24, sleep_interval=0.001)
 
     def poll_for_receive_ready(self):
-        self.device.poll_register(f"{self} receive ready", self.offset_info_receive_mbox, value=0x1<<24, timeout=1, mask=0x1<<24, sleep_interval=0.001)
+        self.device.poll_register(f"{self} receive ready", self.offset_info_receive_mbox, value=0x1<<24, timeout=5, mask=0x1<<24, sleep_interval=0.001)
 
     def poll_for_receive_credits(self):
         self.device.poll_register(f"{self} credits", self.offset_info_receive_mbox, value=0x1<<26, timeout=1, mask=0x1<<26, sleep_interval=0.001)
