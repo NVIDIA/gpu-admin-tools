@@ -23,6 +23,10 @@
 
 import os
 
+def pci_rescan():
+    with open("/sys/bus/pci/rescan", "w") as rf:
+        rf.write("1")
+
 def sysfs_find_devices(filter_vendor = None, filter_devid = None):
     dev_paths = []
     for device_dir in os.listdir("/sys/bus/pci/devices/"):

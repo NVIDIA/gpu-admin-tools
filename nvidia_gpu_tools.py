@@ -3341,9 +3341,6 @@ class Gpu(NvidiaDevice):
                 else:
                     self.c2c = GpuC2C(self)
 
-        if self.is_blackwell and self.has_c2c:
-            self.name = "GB200"
-
         self.bar0_window_base = 0
         self.bar0_window_initialized = False
         self.bios = None
@@ -3960,18 +3957,18 @@ class Gpu(NvidiaDevice):
 
         if self.is_ampere_plus:
             self.set_ecc_mode_after_reset(not org_state)
-            self.sysfs_reset()
+            self.reset_with_os()
             new_state = self.query_final_ecc_state()
             if org_state == new_state:
                 raise GpuError("{0} ECC mode failed to switch from {1} to {2}".format(self, org_state, new_state))
             self.set_ecc_mode_after_reset(org_state)
-            self.sysfs_reset()
+            self.reset_with_os()
             new_state = self.query_final_ecc_state()
             if org_state != new_state:
                 raise GpuError("{0} ECC mode failed to switch back to original state {1}".format(self, org_state))
         else:
             self.force_ecc_on_after_reset()
-            self.sysfs_reset()
+            self.reset_with_os()
             new_state = self.query_final_ecc_state()
             if not new_state:
                 raise GpuError("{0} ECC mode failed to enable".format(self))
