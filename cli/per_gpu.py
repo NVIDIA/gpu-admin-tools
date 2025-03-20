@@ -248,6 +248,7 @@ def main_per_gpu(gpu, opts):
 
         info(f"{gpu} BAR0 firewall mode set to {opts.set_bar0_firewall_mode}. It will be active after device reset.")
 
+
     if opts.test_cc_mode_switch:
         if not gpu.is_gpu() or not gpu.is_cc_query_supported:
             error(f"Configuring CC not supported on {gpu}")

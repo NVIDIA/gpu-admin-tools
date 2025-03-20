@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,9 +21,34 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
-from .error import UnknownDevice, UnknownGpuError, BrokenGpuError, BrokenGpuErrorWithInfo, BrokenGpuErrorSecFault
-from .fsp_emem_rpc import FspEmemRpc
-from .properties import GpuProperties
-from .fsp_mnoc_rpc import FspMnocRpc
-from .mse import MseRpc
+class PluginBase:
+    def register_options(self, parser):
+        """Register CLI options for this plugin."""
+        raise NotImplementedError
+
+    def execute_early(self, args):
+        return True
+
+    def execute_before_main(self, args, devices):
+        return True
+
+    def execute_after_main(self, args, devices):
+        if not self.execute_after_main_no_device(args):
+            return False
+
+        for d in devices:
+            if not self.execute_after_main_per_device(args, d):
+                return False
+            if d.is_gpu():
+                if not self.execute_after_main_per_gpu(args, d):
+                    return False
+        return True
+
+    def execute_after_main_no_device(self, args):
+        return True
+
+    def execute_after_main_per_device(self, args, device):
+        return True
+
+    def execute_after_main_per_gpu(self, args, gpu):
+        return True

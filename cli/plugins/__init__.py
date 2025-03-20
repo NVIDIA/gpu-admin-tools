@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,9 +21,17 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
-from .error import UnknownDevice, UnknownGpuError, BrokenGpuError, BrokenGpuErrorWithInfo, BrokenGpuErrorSecFault
-from .fsp_emem_rpc import FspEmemRpc
-from .properties import GpuProperties
-from .fsp_mnoc_rpc import FspMnocRpc
-from .mse import MseRpc
+import pkgutil
+import importlib
+from cli.core import PluginBase
+
+def load_plugins():
+    """Dynamically discover plugins in this package."""
+    plugins = {}
+    for _, module_name, _ in pkgutil.iter_modules(__path__):
+        module = importlib.import_module(f"{__name__}.{module_name}")
+        for item_name in dir(module):
+            item = getattr(module, item_name)
+            if isinstance(item, type) and issubclass(item, PluginBase) and item is not PluginBase:
+                plugins[item.command_name] = item()
+    return plugins

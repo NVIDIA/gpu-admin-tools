@@ -108,7 +108,8 @@ class PrcKnob(Enum):
     PRC_KNOB_ID_PPCIE_ALLOW_INB                         = 44
     PRC_KNOB_ID_PPCIE                                   = 45
 
-    PRC_KNOB_ID_46                                      = 46
+    PRC_KNOB_ID_CECA_ALLOW_INB                          = 46
+    PRC_KNOB_ID_CECA                                    = 47
 
     @classmethod
     def str_from_knob_id(cls, knob_id):

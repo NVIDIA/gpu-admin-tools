@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2025.03.05o"
+VERSION = "v2025.03.20o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -108,7 +108,7 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
     argp.add_argument("--remove-from-os", action='store_true', default=False,
                       help="Remove from OS through /sys/.../remove")
     argp.add_argument("--sysfs-bind", help="Bind devices to the specified driver")
-    argp.add_argument("--sysfs-unbind", help="Unbind devices from the current driver")
+    argp.add_argument("--sysfs-unbind", action='store_true', help="Unbind devices from the current driver")
     argp.add_argument("--query-ecc-state", action='store_true', default=False,
                       help="Query the ECC state of the GPU")
     argp.add_argument("--query-cc-mode", action='store_true', default=False,
@@ -150,10 +150,11 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
     argp.add_argument("--debug-dump", action='store_true', default=False, help="Dump various state from the device for debug")
     argp.add_argument("--nvlink-debug-dump", action="store_true", help="Dump NVLINK debug state.")
     argp.add_argument("--knobs-reset-to-defaults-list", action='store_true', help="""Show the supported knobs and their default state""")
-    argp.add_argument("--knobs-reset-to-defaults", action='append', help="""Set various device configuration knobs to defaults. Supported on Turing+ GPUs and NvSwitch_gen3. See --reset-knobs-to-defaults-query for the list of supported knobs and their defaults on a specific device.
+    argp.add_argument("--knobs-reset-to-defaults", nargs='+', help="""Set various device configuration knobs to defaults. Supported on Turing+ GPUs and NvSwitch_gen3. See --knobs-reset-to-defaults-list for the list of supported knobs and their defaults on a specific device.
 The option can be specified multiple times to list specific knobs or 'all' can be used to indicate all supported ones should be reset.""")
     argp.add_argument("--knobs-reset-to-defaults-assume-no-pending-changes", action='store_true', help="Indicate that the device was reset after last time any knobs were modified. This allows the reset to defaults to be slightly optimized by querying the current state")
     argp.add_argument("--knobs-reset-to-defaults-test", action='store_true', help="Test knob setting and resetting")
+    argp.add_argument("--noop", action='store_true', help="An empty option that can be used to separate nargs=+ options from positional arguments")
     argp.add_argument("--force-ecc-on-after-reset", action='store_true', default=False,
                     help="Force ECC to be enabled after a subsequent GPU reset")
     argp.add_argument("--test-ecc-toggle", action='store_true', default=False,
@@ -182,7 +183,14 @@ The option can be specified multiple times to list specific knobs or 'all' can b
     argp.add_argument("--write-bar1", type=auto_int, nargs=2, help="""Write 32-bit to GPU BAR1 at specified offset""")
     argp.add_argument("--ignore-nvidia-driver", action='store_true', default=False, help="Do not treat nvidia driver apearing to be loaded as an error")
 
-    return argp
+    subparsers = argp.add_subparsers(dest="command", required=False)
+    from cli.plugins import load_plugins
+    plugins = load_plugins()
+    for name, plugin in plugins.items():
+        plugin_parser = subparsers.add_parser(name)
+        plugin.register_options(plugin_parser)
+
+    return argp, plugins
 
 def pcie_p2p_test(gpus):
     for g1 in gpus:
@@ -234,7 +242,7 @@ def pcie_p2p_test(gpus):
 def init():
     global opts
 
-    argp = create_args()
+    argp, plugins = create_args()
     opts = argp.parse_args([])
 
 def main():
@@ -244,12 +252,19 @@ def main():
 
     global opts
 
-    argp = create_args()
+    argp, plugins = create_args()
     opts = argp.parse_args()
 
     logging.basicConfig(level=getattr(logging, opts.log.upper()),
                         format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d,%H:%M:%S')
+
+    plugin = None
+    if opts.command is not None:
+        plugin = plugins[opts.command]
+    if plugin:
+        if not plugin.execute_early(opts):
+            sys.exit(1)
 
     if platform_config.is_linux:
         PciDevice.mmio_access_type = opts.mmio_access_type
@@ -316,6 +331,10 @@ def main():
     if device and device.is_gpu():
         gpu = device
 
+    if plugin:
+        if not plugin.execute_before_main(opts, devices):
+            sys.exit(1)
+
     if len(devices) != 0:
         print_topo()
         for d in devices:
@@ -344,3 +363,7 @@ def main():
 
     if opts.test_pcie_p2p:
         pcie_p2p_test([gpu for gpu in devices if gpu.is_gpu()])
+
+    if plugin:
+        if not plugin.execute_after_main(opts, devices):
+            sys.exit(1)

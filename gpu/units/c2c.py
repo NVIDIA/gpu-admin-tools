@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,30 +21,45 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-class GpuUnit:
-    name = None
+from ..unit import GpuUnit, GpuUnitAutoBase
 
-    def __init__(self, device):
-        self.device = device
-        self.device.units[self.name] = self
+from logging import info
 
-    def read(self, bar0_offset):
-        return self.device.read(bar0_offset)
+class GpuC2C(GpuUnit):
+    name = "c2c"
 
-    def write(self, bar0_offset, data):
-        return self.device.write(bar0_offset, data)
+    num_links = 10
+
+    def __init__(self, gpu):
+        super().__init__(gpu)
+        gpu.c2c = self
+
+        self.instances = self.device.device_info_instances[0x19]
+
+    def firmware_status(self):
+        status = self.read(self.device.vbios_scratch_register(38))
+        if status == 0:
+            return "not started"
+        elif status == 0xff:
+            return "up"
+        else:
+            return f"fail {status:#x}"
 
     def debug_print(self):
-        pass
+        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
 
-    def __str__(self):
-        return f"{self.device} {self.name}"
+class GpuC2CBlackwell(GpuC2C):
+    num_links = 14
 
+class GpuC2CAuto(GpuUnitAutoBase):
+    name = "c2c"
 
-# Base class for GPU units that are automatically picked up from gpu/units/
-# See gpu/units/__init__.py for the discovery mechanism
-class GpuUnitAutoBase:
-    # Create an instance of the unit for the given device, if applicable
     @classmethod
     def create_instance(cls, device):
-        return None
+        if not device.has_c2c:
+            return None
+
+        if device.is_blackwell_plus:
+            return GpuC2CBlackwell(device)
+
+        return GpuC2C(device)

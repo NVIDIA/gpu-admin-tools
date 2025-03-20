@@ -211,6 +211,7 @@ def main_per_gpu_or_nvswitch(device, opts):
     if opts.knobs_reset_to_defaults:
         if len(device.knob_defaults) == 0:
             raise ValueError(f"{device} does not support knob reset")
+        info(f"{device} resetting knobs {opts.knobs_reset_to_defaults} to defaults")
         device.knobs_reset_to_defaults(opts.knobs_reset_to_defaults, opts.knobs_reset_to_defaults_assume_no_pending_changes)
 
     if opts.knobs_reset_to_defaults_test:

@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,29 +21,3 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .unit import GpuUnit
-
-from logging import info
-
-class GpuC2C(GpuUnit):
-    num_links = 10
-
-    def __init__(self, gpu):
-        super().__init__(gpu, "c2c")
-
-        self.instances = self.device.device_info_instances[0x19]
-
-    def firmware_status(self):
-        status = self.read(self.device.vbios_scratch_register(38))
-        if status == 0:
-            return "not started"
-        elif status == 0xff:
-            return "up"
-        else:
-            return f"fail {status:#x}"
-
-    def debug_print(self):
-        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
-
-class GpuC2CBlackwell(GpuC2C):
-    num_links = 14

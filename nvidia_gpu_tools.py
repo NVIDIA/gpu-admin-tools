@@ -1305,26 +1305,16 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         if self._device_info_instances is not None:
             return self._device_info_instances
 
-
-        base = 0x22800
-
-        if self.is_blackwell_2xx:
-            max_size = 152
-        elif self.is_blackwell_1xx:
-            max_size = 353
-        elif self.is_hopper:
-            max_size = 134
-        else:
-            raise GpuError(f"{self} unknown max_size")
+        num_rows = self.regs.read(self.regs.top.NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS)
 
         in_chain = False
         devices = []
         device = []
-        for offset in range(base, base + max_size * 4, 4):
-            data = self.read(offset)
+        for i in range(0, num_rows):
+            data = self.regs.read(self.regs.top.NV_PTOP_DEVICE_INFO2(i))
             if in_chain or data != 0:
-                device.append(data)
-            in_chain = data >> 31 == 1
+                device.append(data.value)
+            in_chain = data.ROW_CHAIN == 1
             if not in_chain and len(device) != 0:
                 devices.append(device)
                 device = []
@@ -3196,6 +3186,16 @@ class NvSwitch(NvidiaDevice):
 
 
 class Gpu(NvidiaDevice):
+    _cached_gpu_units = None
+
+    @classmethod
+    @property
+    def gpu_units(cls):
+        if cls._cached_gpu_units is None:
+            from gpu.units import load_gpu_units
+            cls._cached_gpu_units = load_gpu_units()
+        return cls._cached_gpu_units
+
     def __init__(self, dev_path):
         self.name = "?"
         self.bar0_addr = 0
@@ -3219,6 +3219,7 @@ class Gpu(NvidiaDevice):
 
         self.arch = "unknown"
         self.chip = "unknown"
+        self._device_info_instances = None
 
         arch, chip = GpuProperties.get_chip_family(self.device)
         if arch is not None:
@@ -3235,6 +3236,9 @@ class Gpu(NvidiaDevice):
             # Default name for unknown GPUs. Known GPUs will override this based
             # on extra properties below
             self.name = f"Generic-{self.chip.upper()}"
+
+            from gpu.regs.core import RegisterInterface
+            self.regs = RegisterInterface(self)
 
         if self.is_hopper_plus:
             self.is_pmu_reset_in_pmc = self.is_pascal_10x_plus
@@ -3279,11 +3283,6 @@ class Gpu(NvidiaDevice):
 
         if self.chip == "unknown":
             gpu_map_key = self.pmcBoot0
-            if gpu_map_key == 0 and self.is_hopper and self.is_in_recovery():
-                # Hardcode H100 value as we detected a hopper GPU in recovery
-                gpu_map_key = 0x180000a1
-            debug(f"{self} is in recovery, overriding to H100 chip")
-
             if gpu_map_key in GPU_MAP_MULTIPLE:
                 match = GPU_MAP_MULTIPLE[self.pmcBoot0]
                 # Check for a device id match. Fall back to the default, if not found.
@@ -3329,17 +3328,11 @@ class Gpu(NvidiaDevice):
             self.is_pcie = "is_pcie" in gpu_extra_props["flags"]
             self.has_c2c = "has_c2c" in gpu_extra_props["flags"]
 
-        self._device_info_instances = None
         self._save_cfg_space()
         self.init_priv_ring()
 
-        if self.is_hopper_plus:
-            if self.has_c2c:
-                from gpu import GpuC2C, GpuC2CBlackwell
-                if self.is_blackwell_plus:
-                    self.c2c = GpuC2CBlackwell(self)
-                else:
-                    self.c2c = GpuC2C(self)
+        for unit in self.gpu_units.values():
+            unit.create_instance(self)
 
         self.bar0_window_base = 0
         self.bar0_window_initialized = False
@@ -3349,6 +3342,7 @@ class Gpu(NvidiaDevice):
         self.falcons_cfg = gpu_props.get("falcons_cfg", {})
         self.needs_falcons_cfg = gpu_props.get("needs_falcons_cfg", {})
         self.mse = None
+
 
         if self.is_ampere_plus:
             graphics_mask = 0
@@ -3363,11 +3357,11 @@ class Gpu(NvidiaDevice):
 
         if self.is_turing_plus:
             self.knob_defaults['ecc'] = True
-        if self.is_ampere:
+        if self.is_mig_mode_supported:
             self.knob_defaults['mig'] = False
-        if self.is_hopper_plus:
+        if self.is_cc_query_supported:
             self.knob_defaults['cc'] = "off"
-        if self.is_hopper:
+        if self.is_ppcie_query_supported:
             self.knob_defaults['ppcie'] = "off"
 
         self.common_init()
@@ -3529,14 +3523,14 @@ class Gpu(NvidiaDevice):
         if not self.is_hopper_plus:
             return False
         if self.is_hopper:
-            flags = self.read(0x20120)
+            flags = self.regs.read(self.regs.therm_int.NV_R_NRELBYZA)
             if flags != 0:
-                debug(f"{self} boot flags 0x{flags:x}")
+                debug(f"{self} boot flags {flags}")
             boot = self.read_bad_ok(0x0)
             if boot == 0:
                 debug(f"{self} BAR0 offset 0x0 is 0, which implies recovery mode")
                 return True
-            return (flags >> 30) & 0x1 == 0x1
+            return flags.F_UIZAVLDE == 1
 
         status = self.read(0x8aa128)
         if status & 0xff not in [0x0, 0x1]:
@@ -3766,6 +3760,7 @@ class Gpu(NvidiaDevice):
 
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
 
+
     def query_cc_settings(self):
         assert self.is_cc_query_supported
 
@@ -3804,13 +3799,7 @@ class Gpu(NvidiaDevice):
     def is_boot_done(self):
         assert self.is_turing_plus
         if self.is_hopper_plus:
-            offset = 0x200bc
-            if self.is_blackwell_2xx_plus:
-                offset = 0xad00bc
-
-            data = self.read(offset)
-            if data == 0xff:
-                return True
+            return self.regs.is_set(self.regs.therm.NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_SUCCESS)
         else:
             data = self.read(0x118234)
             if data == 0x3ff:
@@ -3835,9 +3824,7 @@ class Gpu(NvidiaDevice):
     def wait_for_boot(self):
         assert self.is_turing_plus
         if self.is_hopper_plus:
-            offset = 0x200bc
-            if self.is_blackwell_2xx_plus:
-                offset = 0xad00bc
+            offset = self.regs.therm.NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE.address
 
             badf_ok = self.is_blackwell
             timeout_value = 5
