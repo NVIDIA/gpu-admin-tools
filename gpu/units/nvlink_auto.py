@@ -21,48 +21,29 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from ..unit import GpuUnit, GpuUnitAutoBase
+from ..unit import GpuUnitAutoBase
 
-from logging import info
-
-class GpuC2C(GpuUnit):
-    name = "c2c"
-
-    num_links = 10
-
-    def __init__(self, gpu):
-        super().__init__(gpu)
-        gpu.c2c = self
-
-        self.instances = self.device.device_info_instances[0x19]
-
-    def firmware_status(self):
-        status = self.read(self.device.vbios_scratch_register(38))
-        if status == 0:
-            return "not started"
-        elif status == 0xff:
-            return "up"
-        else:
-            return f"fail {status:#x}"
-
-    def debug_print(self):
-        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
-
-class GpuC2CBlackwell(GpuC2C):
-    num_links = 14
-
-class GpuC2CAuto(GpuUnitAutoBase):
-    name = "c2c"
+class NvlinkAuto(GpuUnitAutoBase):
+    name = "nvlink"
 
     @classmethod
     def create_instance(cls, device):
-        if not device.is_gpu():
-            return None
-
-        if not device.has_c2c:
+        if device.is_nvswitch():
+            if device.is_laguna_plus:
+                from .nvlink_hopper import LagunaNvlink
+                return LagunaNvlink(device)
             return None
 
         if device.is_blackwell_plus:
-            return GpuC2CBlackwell(device)
+            from .nvlink_blackwell import BlackwellNvlink
+            return BlackwellNvlink(device)
 
-        return GpuC2C(device)
+        if device.is_hopper_plus:
+            from .nvlink_hopper import HopperNvlink
+            return HopperNvlink(device)
+
+        if device.is_ampere_100:
+            from .nvlink_ampere import AmpereNvlink
+            return AmpereNvlink(device)
+
+        return None

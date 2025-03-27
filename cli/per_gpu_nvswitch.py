@@ -188,7 +188,7 @@ def main_per_gpu_or_nvswitch(device, opts):
             error(f"{device} does not support NVLink blocking")
             return False
 
-        num_nvlinks = device.nvlink["number"]
+        num_nvlinks = device.nvlink_unit.num_nvlinks
 
         if opts.block_all_nvlinks:
             links_to_block = range(num_nvlinks)
@@ -200,8 +200,14 @@ def main_per_gpu_or_nvswitch(device, opts):
                 error(f"Invalid link {link}, num nvlinks {num_nvlinks}")
                 return False
 
-            device.block_nvlinks(links_to_block)
+            device.nvlink_unit.block_nvlinks(links_to_block)
             info(f"{device} blocked NVLinks {links_to_block}")
+
+    if opts.test_nvlink_blocking:
+        if not device.is_nvlink_supported:
+            error(f"{device} does not support NVLink")
+            return False
+        return device.nvlink_unit.test_nvlink_blocking()
 
     if opts.knobs_reset_to_defaults_list:
         if len(device.knob_defaults) == 0:

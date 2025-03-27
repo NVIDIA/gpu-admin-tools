@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2025.03.20o"
+VERSION = "v2025.03.26o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -165,10 +165,11 @@ The option can be specified multiple times to list specific knobs or 'all' can b
                     help="Force MIG mode to be disabled after a subsequent GPU reset")
     argp.add_argument("--test-mig-toggle", action='store_true', default=False,
                     help="Test toggling MIG mode.")
-    argp.add_argument("--block-nvlink", type=auto_int, action='append',
-                    help="Block the specified NVLink. Can be specified multiple times to block more NVLinks. NVLinks will be blocked until an SBR. Supported on A100 only.")
+    argp.add_argument("--block-nvlink", type=auto_int, nargs='+',
+                    help="Block the specified NVLinks. NVLinks will be blocked until a subsequent GPU reset (SBR on A100, FLR or SBR on Hopper GPUs [based on OOB configuration], FLR or SBR on Blackwell and later). Supported on A100 and later GPUs that have NVLinks.")
     argp.add_argument("--block-all-nvlinks", action='store_true', default=False,
-                    help="Block all NVLinks. NVLinks will be blocked until a subsequent SBR. Supported on A100 only.")
+                    help="Block all NVLinks. See --block-nvlink for more details.")
+    argp.add_argument("--test-nvlink-blocking", action='store_true', default=False, help="Test blocking NVLinks.")
     argp.add_argument("--dma-test", action='store_true', default=False,
                     help="Check that GPUs are able to perform DMA to all/most of available system memory.")
     argp.add_argument("--test-pcie-p2p", action='store_true', default=False,

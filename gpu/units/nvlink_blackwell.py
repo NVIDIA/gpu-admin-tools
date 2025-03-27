@@ -21,48 +21,27 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from ..unit import GpuUnit, GpuUnitAutoBase
+from logging import debug
 
-from logging import info
+from .nvlink import NvlinkBase, NvlinkFspInterface
 
-class GpuC2C(GpuUnit):
-    name = "c2c"
+class BlackwellNvlink(NvlinkBase, NvlinkFspInterface):
+    does_flr_reenable_links = True
 
-    num_links = 10
+    def __init__(self, device):
+        super().__init__(device)
 
-    def __init__(self, gpu):
-        super().__init__(gpu)
-        gpu.c2c = self
+        self.present_links = self.device.device_info_instances[self.device.regs.top_int.NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_EFTKKQKC.value]
+        self.num_nvlinks = len(self.present_links)
 
-        self.instances = self.device.device_info_instances[0x19]
+    def get_enabled_nvlinks(self):
+        return self.present_links
 
-    def firmware_status(self):
-        status = self.read(self.device.vbios_scratch_register(38))
-        if status == 0:
-            return "not started"
-        elif status == 0xff:
-            return "up"
-        else:
-            return f"fail {status:#x}"
-
-    def debug_print(self):
-        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
-
-class GpuC2CBlackwell(GpuC2C):
-    num_links = 14
-
-class GpuC2CAuto(GpuUnitAutoBase):
-    name = "c2c"
-
-    @classmethod
-    def create_instance(cls, device):
-        if not device.is_gpu():
-            return None
-
-        if not device.has_c2c:
-            return None
-
-        if device.is_blackwell_plus:
-            return GpuC2CBlackwell(device)
-
-        return GpuC2C(device)
+    def get_blocked_nvlinks(self):
+        self.device.init_mse()
+        link_states = self.device.mse.portlist_status()
+        blocked_links = []
+        for link in range(self.num_nvlinks):
+            if link_states[link] == "disabled":
+                blocked_links.append(link)
+        return blocked_links

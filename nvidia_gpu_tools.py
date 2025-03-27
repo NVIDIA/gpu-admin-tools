@@ -1006,6 +1006,17 @@ class NvidiaDeviceInternal:
 
 
 class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
+    _cached_device_units = None
+
+    @classmethod
+    @property
+    def device_units(cls):
+        if cls._cached_device_units is None:
+            from gpu.units import load_gpu_units
+            cls._cached_device_units = load_gpu_units()
+        return cls._cached_device_units
+
+
     def __init__(self, dev_path):
         super(NvidiaDevice, self).__init__(dev_path)
 
@@ -1039,6 +1050,7 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.is_pcie = False
         self.is_sxm = False
         self.has_c2c = False
+        self.is_nvlink_supported = False
 
         self.units = {}
 
@@ -1049,10 +1061,6 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         self.nvlink = None
         if "nvlink" in self.props:
             self.nvlink = self.props["nvlink"]
-
-    @property
-    def is_nvlink_supported(self):
-        return self.nvlink is not None
 
     @property
     def has_pdi(self):
@@ -1249,18 +1257,6 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         pdi = int(self.read(0x820348)) << 32 | pdi
         return pdi
 
-
-    def block_nvlinks(self, nvlinks):
-        assert self.is_nvlink_supported
-
-        if self.name == "A100":
-            for nvlink in nvlinks:
-                self.block_nvlink_a100(nvlink)
-            return
-
-        if self.has_fsp:
-            self._init_fsp_rpc()
-            self.fsp_rpc.prc_block_nvlinks(nvlinks, persistent=False)
 
     def bitfield(self, offset, init_value=None, deferred=False):
         return GpuBitfield(self, offset, init_value, deferred)
@@ -3000,6 +2996,9 @@ class NvSwitch(NvidiaDevice):
         if self.is_ppcie_query_supported:
             self.knob_defaults = {"ppcie": "off"}
 
+        for unit in self.device_units.values():
+            unit.create_instance(self)
+
         self.common_init()
 
     def is_nvswitch(self):
@@ -3186,16 +3185,6 @@ class NvSwitch(NvidiaDevice):
 
 
 class Gpu(NvidiaDevice):
-    _cached_gpu_units = None
-
-    @classmethod
-    @property
-    def gpu_units(cls):
-        if cls._cached_gpu_units is None:
-            from gpu.units import load_gpu_units
-            cls._cached_gpu_units = load_gpu_units()
-        return cls._cached_gpu_units
-
     def __init__(self, dev_path):
         self.name = "?"
         self.bar0_addr = 0
@@ -3331,7 +3320,7 @@ class Gpu(NvidiaDevice):
         self._save_cfg_space()
         self.init_priv_ring()
 
-        for unit in self.gpu_units.values():
+        for unit in self.device_units.values():
             unit.create_instance(self)
 
         self.bar0_window_base = 0
@@ -4319,54 +4308,6 @@ class Gpu(NvidiaDevice):
             return 0x88e10
         return self.flr_resettable_scratch()
 
-
-    def _nvlink_offset(self, link, reg=0):
-        io_ctrl_base = 0xA00000
-        per_io_ctrl_offset = 0x40000
-        io_bases = 3
-        link_0_offset = 0x17000
-        per_link_offset = 0x8000
-        links_per_io = 4
-
-        iob = link // links_per_io
-        iolink = link % links_per_io
-        link_offset = io_ctrl_base + per_io_ctrl_offset * iob + link_0_offset + per_link_offset * iolink
-        return link_offset + reg
-
-    def nvlink_write(self, link, reg, data):
-        reg_offset = self._nvlink_offset(link, reg)
-        self.write(reg_offset, data)
-
-    def nvlink_write_verbose(self, link, reg, data):
-        reg_offset = self._nvlink_offset(link, reg)
-        self.write_verbose(reg_offset, data)
-
-    def nvlink_read(self, link, reg):
-        reg_offset = self._nvlink_offset(link, reg)
-        return self.read(reg_offset)
-
-    def block_nvlink(self, nvlink):
-        assert self.name == "A100"
-
-        if self.name == "A100":
-            return self.block_nvlink_a100(nvlink)
-
-    def block_nvlink_a100(self, link, lock=True):
-        assert link >= 0
-        assert link < 12
-
-        self.nvlink_write_verbose(link, 0x64c, 0x1)
-
-
-        if lock:
-            self.nvlink_write_verbose(link, 0x650, 0x1)
-
-
-    def block_nvlink(self, nvlink):
-        assert self.name == "A100"
-
-        if self.name == "A100":
-            return self.block_nvlink_a100(nvlink)
 
     def read_module_id_h100(self):
 
