@@ -1008,14 +1008,10 @@ class NvidiaDeviceInternal:
 class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
     _cached_device_units = None
 
-    @classmethod
     @property
-    def device_units(cls):
-        if cls._cached_device_units is None:
-            from gpu.units import load_gpu_units
-            cls._cached_device_units = load_gpu_units()
-        return cls._cached_device_units
-
+    def device_units(self):
+        from gpu.units import gpu_units_cached
+        return gpu_units_cached()
 
     def __init__(self, dev_path):
         super(NvidiaDevice, self).__init__(dev_path)

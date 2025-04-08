@@ -25,7 +25,7 @@ import pkgutil
 import importlib
 from gpu.unit import GpuUnitAutoBase
 
-def load_gpu_units():
+def _load_gpu_units():
     """Dynamically discover GPU units."""
     gpu_units = {}
     for _, module_name, _ in pkgutil.iter_modules(__path__):
@@ -35,3 +35,10 @@ def load_gpu_units():
             if isinstance(item, type) and issubclass(item, GpuUnitAutoBase) and item is not GpuUnitAutoBase:
                 gpu_units[item.name] = item()
     return gpu_units
+
+_gpu_units = None
+def gpu_units_cached():
+    global _gpu_units
+    if _gpu_units is None:
+        _gpu_units = _load_gpu_units()
+    return _gpu_units
