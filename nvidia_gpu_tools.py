@@ -1179,7 +1179,11 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
             return
 
         # Wait for boot to be done such that FSP is available
-        self.wait_for_boot()
+        try:
+            self.wait_for_boot(silent_on_failure=True)
+        except GpuPollTimeout as err:
+            warning(f"{self} has not booted successfully within a timeout, but FSP RPC might still be available. Continuing")
+            pass
 
         self.init_falcons()
 
@@ -3111,11 +3115,13 @@ class NvSwitch(NvidiaDevice):
                 return True
         return False
 
-    def wait_for_boot(self):
+    def wait_for_boot(self, silent_on_failure=False):
         if self.is_laguna_plus:
             try:
                 self.poll_register("boot_complete", 0x660bc, 0xff, 5)
             except GpuError as err:
+                if silent_on_failure:
+                    raise
                 _, _, tb = sys.exc_info()
                 traceback.print_tb(tb)
                 self.debug_dump()
@@ -3806,7 +3812,7 @@ class Gpu(NvidiaDevice):
                 error(f"{self} BAR0 still broken after 3s sleep")
                 raise BrokenGpuErrorWithInfo("Blackwell+ BAR0 not accessible and no DVSEC 10de:0 cap exposed")
 
-    def wait_for_boot(self):
+    def wait_for_boot(self, silent_on_failure=False):
         assert self.is_turing_plus
         if self.is_hopper_plus:
             offset = self.regs.therm.NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE.address
@@ -3820,6 +3826,8 @@ class Gpu(NvidiaDevice):
 
                 self.poll_register("boot_complete", offset, 0xff, timeout_value, badf_ok=badf_ok)
             except GpuError as err:
+                if silent_on_failure:
+                    raise
                 _, _, tb = sys.exc_info()
                 debug("{} boot not done 0x{:x} = 0x{:x}".format(self, offset, self.read(offset)))
                 for offset in range(0, 4*4, 4):

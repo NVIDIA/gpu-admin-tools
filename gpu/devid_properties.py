@@ -82,4 +82,11 @@ GPU_PROPS_BY_DEVID = {
   (0x2941,0x20CA): ['has_c2c', 'is_sxm'],
   (0x297E,0x2046): ['has_c2c', 'is_sxm'],
   (0x29BC,0x2045): ['has_c2c', 'is_sxm'],
+  (0x3182,0x20E6): ['is_sxm'],
+  (0x31C2,0x20E5): ['is_sxm'],
+  (0x31C2,0x20E6): ['is_sxm'],
+  (0x31FE,0x20E5): ['is_sxm'],
+  (0x3224,0x215F): ['is_sxm'],
+  (0x323E,0x215F): ['is_sxm'],
+  (0x31C2,0x21F1): ['has_c2c', 'is_sxm'],
 }

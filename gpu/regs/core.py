@@ -345,6 +345,10 @@ class RegisterInterface:
         if chip.startswith("gb2"):
             # Use gb202 for gb20x
             chip = "gb202"
+        elif chip == "gb110":
+            chip = "gb100"
+        elif chip == "gb112":
+            chip = "gb102"
 
         modules = self._discover_modules(chip)
 

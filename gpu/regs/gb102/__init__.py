@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,23 +21,3 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-GPU_DEVID_CHIPS = [
-  (0x2900, 0x297F, 'blackwell', 'gb100'),
-
-  (0x2980, 0x29FF, 'blackwell', 'gb102'),
-
-  (0x3180, 0x31FF, 'blackwell', 'gb110'),
-
-  (0x3200, 0x327F, 'blackwell', 'gb112'),
-
-  (0x2B80, 0x2BFF, 'blackwell', 'gb202'),
-
-  (0x2C00, 0x2C7F, 'blackwell', 'gb203'),
-
-  (0x2F00, 0x2F7F, 'blackwell', 'gb205'),
-
-  (0x2D00, 0x2D7F, 'blackwell', 'gb206'),
-
-  (0x2D80, 0x2DFF, 'blackwell', 'gb207'),
-
-]
