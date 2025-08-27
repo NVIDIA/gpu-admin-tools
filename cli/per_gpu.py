@@ -21,6 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+import json
 import os
 import sys
 import time
@@ -220,7 +221,20 @@ def main_per_gpu(gpu, opts):
             return False
 
         cc_mode = gpu.query_cc_mode()
-        info(f"{gpu} CC mode is {cc_mode}")
+        output_data = {
+            "gpu_bdf": str(gpu.bdf),
+            "cc_mode": cc_mode
+        }
+        print(json.dumps(output_data))
+
+        if opts.output_json_file:
+            try:
+                with open(opts.output_json_file, 'w') as f:
+                    json.dump(output_data, f, indent=4)
+                info(f"CC mode query result written to {opts.output_json_file}")
+            except IOError as e:
+                error(f"Failed to write CC mode query result to {opts.output_json_file}: {e}")
+                return False
 
     if opts.query_bar0_firewall_mode:
         if not gpu.is_bar0_firewall_supported:
