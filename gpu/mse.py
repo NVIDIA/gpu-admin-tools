@@ -21,11 +21,13 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+import atexit
+from logging import debug
+
 from utils import NiceStruct
+
 from .mnoc import GpuMnoc
 
-from logging import debug
-import atexit
 
 class MseHeader(NiceStruct):
     _fields_ = [
@@ -107,7 +109,7 @@ class MseRpc:
         mse_header.ssid = 9
         mse_header.dsid = 4
 
-        data_to_send = mse_header.to_int_array() + cmd_data
+        data_to_send = mse_header.to_int_list() + cmd_data
 
         self.mnoc.send_data(data_to_send)
 
@@ -118,7 +120,7 @@ class MseRpc:
 
         while True:
             resp_data = self.mnoc.receive_data()
-            mse_header.from_int_array(resp_data[:4])
+            mse_header.from_ints(resp_data[:4])
             if mse_header.is_response:
                 return resp_data[4:]
             else:
@@ -166,6 +168,5 @@ class MseRpc:
     def get_platform_info(self):
         platform_info_raw = self.send_cmd(2, 0x30, [])
         platform_info = GetPlatformInfoRsp()
-        platform_info.from_int_array(platform_info_raw)
+        platform_info.from_ints(platform_info_raw)
         return platform_info
-

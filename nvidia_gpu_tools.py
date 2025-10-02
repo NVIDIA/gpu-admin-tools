@@ -24,6 +24,7 @@
 #
 
 from __future__ import print_function
+import array
 import collections
 import time
 import sys
@@ -32,7 +33,7 @@ from logging import debug, info, warning, error
 from pathlib import Path
 
 from utils import platform_config
-from utils import data_from_int, ints_from_bytearray, read_ints_from_path
+from utils import data_from_int, array_view_from_bytearray, read_ints_from_path
 from utils import formatted_tuple_from_data
 from gpu.defines import *
 from pci.defines import *
@@ -3040,14 +3041,13 @@ class NvSwitch(NvidiaDevice):
         return False
 
     def dump_bar0(self):
-        bar0_data = bytearray()
+        bar0_data_array = array.array('I')
         for offset in range(0, self.bar0_size, 4):
             if offset % (128 * 1024) == 0:
                 debug("Dumped %d bytes so far", offset)
             data = self.bar0.read32(offset)
-            bar0_data.extend(data_from_int(data, 4))
-
-        return bar0_data
+            bar0_data_array.append(data)
+        return memoryview(bar0_data_array.tobytes()).toreadonly()
 
     def flr_resettable_scratch(self):
         return 0xdfe0
