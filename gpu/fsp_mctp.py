@@ -23,6 +23,16 @@
 
 from utils import NiceStruct
 
+# Constants
+IANA_NVIDIA = 0x1647
+
+# Enum classes
+class VendorDefinedIanaCommand:
+    DownloadLog = 0x06
+
+class MctpMessageType:
+    VendorDefinedIana = 0x7F
+
 class MctpHeader(NiceStruct):
     _fields_ = [
             ("version", "I", 4),
@@ -55,3 +65,91 @@ class MctpMessageHeader(NiceStruct):
 
         self.type = 0x7e
         self.vendor_id = 0x10de
+
+class MctpVdmIanaReqHeader(NiceStruct):
+    _fields_ = [
+            ("messageType", "B", 7),
+            ("ic", "B", 1),
+            ("iana", "I"),  # 32-bit integer
+            ("instanceId", "B", 5),
+            ("rsvd", "B", 1),
+            ("d", "B", 1),
+            ("rq", "B", 1),
+            ("vendorMessageType", "B"),
+            ("commandCode", "B"),
+            ("messageVersion", "B"),
+    ]
+
+    def __init__(self):
+        super().__init__()
+
+        # Initialize with default values
+        self.messageType = MctpMessageType.VendorDefinedIana & 0x7F
+        self.ic = 0
+        self.iana = IANA_NVIDIA
+        self.instanceId = 0
+        self.rsvd = 0
+        self.d = 0
+        self.rq = 1
+        self.vendorMessageType = 1
+        self.commandCode = 0  # Will be set per request
+        self.messageVersion = 0  # Will be set per request
+
+    def set_commandCode(self, commandCode):
+        self.commandCode = commandCode & 0xFF
+
+    def set_messageVersion(self, messageVersion):
+        self.messageVersion = messageVersion & 0xFF
+
+class MctpVdmIanaRspHdr(NiceStruct):
+    _fields_ = [
+            ("messageType", "B", 7),
+            ("ic", "B", 1),
+            ("iana", "I"),
+            ("instanceId", "B", 5),
+            ("rsvd", "B", 1),
+            ("d", "B", 1),
+            ("rq", "B", 1),
+            ("vendorMessageType", "B"),
+            ("commandCode", "B"),
+            ("messageVersion", "B"),
+            ("completionCode", "B"),
+    ]
+
+    def get_messageType(self):
+        return self.messageType
+
+    def get_commandCode(self):
+        return self.commandCode
+
+    def get_completionCode(self):
+        return self.completionCode
+
+    def __init__(self):
+        super().__init__()
+
+class MctpVdmIanaDownloadLog(NiceStruct):
+    _fields_ = [
+            ("sessionId", "B"),  # Single byte matching NvU8 sessionId
+    ]
+
+    def __init__(self):
+        super().__init__()
+        self.sessionId = 0xFF
+
+    def set_sessionId(self, sessionId):
+        self.sessionId = sessionId & 0xFF
+
+class MctpVdmIanaDownloadLogResponse(NiceStruct):
+    _fields_ = [
+            ("sessionId", "B"),  # NvU8 sessionId
+            ("length", "B"),     # NvU8 length
+            ("data", "52s"),     # NvU8 data[52] - 52 bytes
+    ]
+
+    def __init__(self):
+        super().__init__()
+        self.sessionId = 0
+        self.length = 0
+        self.data = b'\x00' * 52  # Initialize 52 bytes of zeros
+

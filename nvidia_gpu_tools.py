@@ -2703,7 +2703,7 @@ class FspFalcon(GpuFalcon):
     def msg_queue_tail_off(self, i):
         return self.base_page + 0x2c84 + i * 8
 
-from gpu.fsp_mctp import MctpHeader, MctpMessageHeader
+from gpu.fsp_mctp import MctpHeader, MctpMessageHeader, MctpVdmIanaReqHeader, MctpVdmIanaRspHdr, MctpVdmIanaDownloadLog, VendorDefinedIanaCommand, MctpMessageType
 
 class FspRpc(object):
     def __init__(self, fsp_falcon, channel_type, channel_num):
@@ -2946,6 +2946,100 @@ class FspRpc(object):
 
     def recreate_inforom_fs(self):
         self.send_cmd(0x17, [0x5], timeout=10)
+
+    def download_dmem_log(self, timeout=10):
+        """Download DMEM log using MCTP VDM IANA protocol."""
+        mnoc_transport = self.transport
+
+        sessionId = 0xFF
+        all_data = []
+        length = 1
+        instanceId_val = 0
+
+        while length != 0:  # Loop until length = 0
+            mctp_header = MctpHeader()
+
+            mctp_vdm_iana_header = MctpVdmIanaReqHeader()
+            instanceId_val = (instanceId_val + 1) & 0x1F  # Increment and mask to 5 bits
+            mctp_vdm_iana_header.instanceId = instanceId_val
+            mctp_vdm_iana_header.set_commandCode(VendorDefinedIanaCommand.DownloadLog)
+            mctp_vdm_iana_header.set_messageVersion(1)
+
+            mctp_download_log = MctpVdmIanaDownloadLog()
+            mctp_download_log.set_sessionId(sessionId)
+
+            # Create 16-byte request: MCTP(4) + IANA(9) + sessionId(1) + padding(2)
+            request_bytes = bytearray(16)
+            request_bytes[0:4] = mctp_header.to_bytes()
+            request_bytes[4:13] = mctp_vdm_iana_header.to_bytes()
+            request_bytes[13] = sessionId
+
+            pReqData = [int.from_bytes(request_bytes[i:i+4], 'little') for i in range(0, 16, 4)]
+            total_size = 16
+
+            debug(f"{self} sending request with sessionId=0x{sessionId:02X}. Total size {total_size} bytes")
+            mnoc_transport.send_data(pReqData)
+
+            pRspData = mnoc_transport.receive_data(timeout)
+            rsp_size = len(pRspData) * 4
+
+            debug(f"{self} response {len(pRspData)} words: {[hex(d) for d in pRspData]}")
+
+            if len(pRspData) < 4:
+                raise FspRpcError(f"{self} response too short: got {len(pRspData)} words, need at least 4")
+
+            # Parse VDM IANA response header
+            iana_response = MctpVdmIanaRspHdr()
+            iana_response.from_int_array([pRspData[1], pRspData[2], pRspData[3]])
+
+            # Validate response
+            if iana_response.get_messageType() != MctpMessageType.VendorDefinedIana:
+                raise FspRpcError(f"{self} wrong messageType in response")
+            if iana_response.get_commandCode() != VendorDefinedIanaCommand.DownloadLog:
+                raise FspRpcError(f"{self} wrong commandCode in response")
+
+            # Check completion code
+            completion_code = iana_response.get_completionCode()
+            if completion_code != 0:
+                debug(f"{self} Download log failed with completion code 0x{completion_code:02X}")
+                raise FspRpcError(self, completion_code, pRspData)
+
+            # Parse the download log response payload directly
+            if len(pRspData) > 3:
+                # Extract sessionId and length from pRspData[3]
+                # pRspData[3] contains: [IANA_byte8][IANA_byte9][sessionId][length]
+                payload_word = pRspData[3]
+                sessionId = (payload_word >> 16) & 0xFF  # SessionId is byte 14 (byte 2 of word 3)
+                length = (payload_word >> 24) & 0xFF     # Length is byte 15 (byte 3 of word 3)
+
+                debug(f"{self} received sessionId=0x{sessionId:02X}, length={length}")
+
+                # Extract exactly 'length' bytes from the response data words
+                data_chunk = []
+                if length > 0:
+                    # Start from pRspData[4] (data starts at byte 16)
+                    for i in range(4, len(pRspData)):
+                        word = pRspData[i]
+                        # Extract bytes from this word (little-endian: byte0, byte1, byte2, byte3)
+                        for byte_offset in range(4):
+                            if len(data_chunk) < length:  # Only collect up to 'length' bytes
+                                byte_val = (word >> (byte_offset * 8)) & 0xFF
+                                data_chunk.append(byte_val)
+                            else:
+                                break
+                        if len(data_chunk) >= length:
+                            break
+
+                # Add this iteration's data to our total collection
+                all_data.extend(data_chunk)
+                debug(f"{self} iteration collected {len(data_chunk)} bytes (expected {length}), total so far: {len(all_data)} bytes")
+            else:
+                raise FspRpcError(f"{self} no payload in response")
+
+        # Download complete, return all collected data
+        debug(f"{self} download complete. Collected {len(all_data)} bytes")
+
+        return all_data
 
 class NvSwitch(NvidiaDevice):
     def __init__(self, dev_path):
@@ -4394,6 +4488,10 @@ class Gpu(NvidiaDevice):
 
     def __eq__(self, other):
         return self.bar0_addr == other.bar0_addr
+
+    def download_dmem_log(self, timeout=10):
+        self._init_fsp_rpc()
+        return self.fsp_rpc.download_dmem_log(timeout)
 
 # Inject the Gpu class into devices module.
 # TODO: clean this up once Gpu is refactored out.

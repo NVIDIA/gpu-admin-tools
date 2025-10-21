@@ -228,6 +228,25 @@ def main_per_gpu_or_nvswitch(device, opts):
     if opts.nvlink_debug_dump:
         device.nvlink_debug()
 
+    if opts.debug_dump_fsp_dmem_logs:
+        if device.is_gpu() and device.is_blackwell_plus:
+            info(f"{device} downloading DMEM logs")
+            try:
+                filename = f"fsp_dmem_logs_gpu_{device.bdf.replace(':', '_').replace('.', '_')}.bin"
+                result = device.download_dmem_log(timeout=10)
+
+                # Write the data to file in CLI layer
+                with open(filename, 'wb') as f:
+                    f.write(bytes(result))
+
+                info(f"{device} successfully downloaded {len(result)} bytes to {filename}")
+            except Exception as e:
+                error(f"{device} failed to download DMEM logs: {e}")
+                return False
+        else:
+            error(f"{device} DMEM log download is only supported on Blackwell+ GPUs")
+            return False
+
 
     return True
 

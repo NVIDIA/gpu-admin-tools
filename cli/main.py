@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2025.07.21o"
+VERSION = "v2025.10.20o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -183,6 +183,7 @@ The option can be specified multiple times to list specific knobs or 'all' can b
     argp.add_argument("--read-bar1", type=auto_int, help="""Read 32-bits from GPU BAR1 at specified offset""")
     argp.add_argument("--write-bar1", type=auto_int, nargs=2, help="""Write 32-bit to GPU BAR1 at specified offset""")
     argp.add_argument("--ignore-nvidia-driver", action='store_true', default=False, help="Do not treat nvidia driver apearing to be loaded as an error")
+    argp.add_argument("--debug-dump-fsp-dmem-logs", action="store_true", help="Download and dump FSP DMEM debug logs from the GPU (outputs fsp_dmem_logs_gpu_{BDF}.bin). Applicable on Blackwell+ GPUs. This binary can be shared with NVIDIA for debug.")
 
     subparsers = argp.add_subparsers(dest="command", required=False)
     from cli.plugins import load_plugins
