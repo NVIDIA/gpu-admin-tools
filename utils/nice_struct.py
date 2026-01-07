@@ -22,7 +22,10 @@
 #
 
 import struct
+from typing import Iterable
+
 from .ints_to_bytes import *
+
 
 class NiceStructMeta(type):
     def __init__(cls, name, bases, attrs):
@@ -187,21 +190,20 @@ class NiceStruct(metaclass=NiceStructMeta):
 
         return struct.pack(self.fmt_string, *packed_values)
 
-    def from_int_array(self, ints):
-        self.from_bytes(bytearray_from_ints(ints))
+    def from_ints(self, ints: Iterable[int]) -> None:
+        self.from_bytes(bytearray_view_from_ints(ints))
 
-    def to_int_array(self, int_size=4):
-        as_bytes = self.to_bytes()
-        return ints_from_bytearray(as_bytes, int_size)
+    def to_int_list(self, int_size: int = 4) -> list[int]:
+        return ints_from_data(self.to_bytes(), int_size)
 
-    def to_int(self, int_size=4):
-        int_array = self.to_int_array(int_size)
-        if len(int_array) != 1:
+    def to_int(self, int_size: int = 4) -> int:
+        int_list = self.to_int_list(int_size)
+        if len(int_list) != 1:
             raise ValueError(f"{self.name} doesn't fit in a single int with {int_size} bytes")
-        return int_array[0]
+        return int_list[0]
 
-    def from_int(self, integer):
-        self.from_int_array([integer])
+    def from_int(self, integer: int) -> None:
+        self.from_ints([integer])
 
 class NiceStructArray:
     def __init__(self, struct_class, count):
