@@ -30,6 +30,21 @@ from utils.binaries import read_bin_ucode
 from gpu import GpuError, FspRpcError
 
 
+def verify_boot(device):
+    assert device.is_gpu() or device.is_nvswitch()
+
+    if device.is_gpu() and not device.is_turing_plus:
+        error(f"{device} does not support verify_boot (requires Turing+)")
+        return False
+
+    try:
+        device.verify_boot()
+        info(f"{device} boot verified")
+        return True
+    except GpuError as e:
+        error(f"{e}")
+        return False
+
 
 def main_per_gpu_or_nvswitch(device, opts):
     if device.is_broken_gpu():
@@ -182,6 +197,10 @@ def main_per_gpu_or_nvswitch(device, opts):
             error(f"{device} does not support module name query")
             return False
         info(f"{device} module name {device.module_name}")
+
+    if opts.verify_boot:
+        if not verify_boot(device):
+            return False
 
     if opts.block_all_nvlinks or opts.block_nvlink:
         if not device.is_nvlink_supported:

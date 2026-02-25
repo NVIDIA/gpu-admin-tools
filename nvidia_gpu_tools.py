@@ -3228,6 +3228,19 @@ class NvSwitch(NvidiaDevice):
                 self.debug_dump()
                 raise
 
+    def verify_boot(self):
+        """Wait for boot and verify device health.
+
+        Raises GpuError on failure.
+        """
+        self.wait_for_boot()
+
+        if self.is_in_recovery():
+            self.debug_dump()
+            raise GpuError(f"{self} is in recovery")
+
+        debug(f"{self} boot verified")
+
     def read_module_id_ls10(self):
         gpios = [0x0, 0x1]
 
@@ -3602,6 +3615,7 @@ class Gpu(NvidiaDevice):
             return True
         return self.is_blackwell_2xx
 
+
     @property
     def has_fsp(self):
         return self.is_hopper_plus
@@ -3959,6 +3973,28 @@ class Gpu(NvidiaDevice):
                 raise
         else:
             self.poll_register("boot_complete", 0x118234, 0x3ff, 5)
+
+    def verify_boot(self):
+        """Wait for boot and verify device health including subsystems like C2C.
+
+        Raises GpuError on failure.
+        """
+        assert self.is_turing_plus
+
+        self.wait_for_boot()
+
+        if self.is_in_recovery():
+            self.debug_dump()
+            raise GpuError(f"{self} is in recovery")
+
+        if self.has_c2c:
+            c2c_status = self.c2c.firmware_status()
+            if c2c_status != "up":
+                self.debug_dump()
+                raise GpuError(f"{self} C2C failed: {c2c_status}")
+            debug(f"{self} C2C up")
+
+        debug(f"{self} boot verified")
 
     def clear_memory(self):
         assert self.is_memory_clear_supported
@@ -4484,8 +4520,9 @@ class Gpu(NvidiaDevice):
     def debug_dump(self):
         offsets = []
         if self.is_hopper_plus:
-            offsets.append(("boot_status", 0x200bc))
-            offsets.append(("boot_flags", 0x20120))
+            offsets.append(("boot_status", self.regs.therm.NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE.address))
+            if self.is_hopper:
+                offsets.append(("boot_flags", 0x20120))
             for i in range(4):
                 offsets.append((f"fsp_status_{i}", 0x8f0320 + i * 4))
             if self.is_hopper:

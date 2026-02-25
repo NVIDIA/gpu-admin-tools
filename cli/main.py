@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2025.11.21o"
+VERSION = "v2026.02.24o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -144,6 +144,7 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
     argp.add_argument("--query-l4-serial-number", action='store_true', default=False,
                     help="Query the L4 certificate serial number without the MSB. The MSB could be either 0x41 or 0x40 based on the RoT returning the certificate chain.")
     argp.add_argument("--query-module-name", action='store_true', help="Query the module name (aka physical ID and module ID). Supported only on H100 SXM and NVSwitch_gen3")
+    argp.add_argument("--verify-boot", action='store_true', help="Wait for device boot and verify the boot is successful, including e.g. C2C on GPUs with C2C support. Supported on Turing+ GPUs and NVSwitches.")
     argp.add_argument("--clear-memory", action='store_true', default=False,
                       help="Clear the contents of the GPU memory. Supported on Pascal+ GPUs. Assumes the GPU has been reset with SBR prior to this operation and can be comined with --reset-with-sbr if not.")
 

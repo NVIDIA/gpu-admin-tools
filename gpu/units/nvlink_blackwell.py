@@ -31,7 +31,11 @@ class BlackwellNvlink(NvlinkBase, NvlinkFspInterface):
     def __init__(self, device):
         super().__init__(device)
 
-        self.present_links = self.device.device_info_instances[self.device.regs.top_int.NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_EFTKKQKC.value]
+        if device.is_blackwell_1xx:
+            self.present_links = self.device.device_info_instances[self.device.regs.top_int.NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_EFTKKQKC.value]
+        else:
+            self.present_links = self.device.device_info_instances[self.device.regs.top_int.NV_R_KMOWNCOL_DEV_TYPE_ENUM_V_EFTKKQKC.value]
+
         self.num_nvlinks = len(self.present_links)
 
     def get_enabled_nvlinks(self):

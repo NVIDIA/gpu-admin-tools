@@ -40,4 +40,6 @@ GPU_DEVID_CHIPS = [
 
   (0x2D80, 0x2DFF, 'blackwell', 'gb207'),
 
+
+
 ]
