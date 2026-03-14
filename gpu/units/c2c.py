@@ -34,7 +34,7 @@ class GpuC2C(GpuUnit):
         super().__init__(gpu)
         gpu.c2c = self
 
-        self.instances = self.device.device_info_instances[0x19]
+        self.instances = self.device.top.device_info_instances[0x19]
 
     def firmware_status(self):
         status = self.read(self.device.vbios_scratch_register(38))

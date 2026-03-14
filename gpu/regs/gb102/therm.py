@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -23,45 +23,14 @@
 
 from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
 
-# Register definitions
-NV_THERM_I2CS_SCRATCH = RegisterMetadata(
-    name='NV_THERM_I2CS_SCRATCH',
-    address=0x200bc
-)
-
-NV_THERM_I2CS_SCRATCH_DATA = FieldMetadata(
-    name='NV_THERM_I2CS_SCRATCH_DATA',
-    msb=31,
-    lsb=0,
-    register=NV_THERM_I2CS_SCRATCH
-)
-
-NV_THERM_I2CS_SCRATCH_DATA_INIT = ValueMetadata(
-    name='NV_THERM_I2CS_SCRATCH_DATA_INIT',
-    value=0,
-    field=NV_THERM_I2CS_SCRATCH_DATA
-)
-
-NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE = RegisterMetadata(
-    name='NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE',
-    address=0x200bc
-)
-
-NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS = FieldMetadata(
-    name='NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS',
-    msb=31,
-    lsb=0,
-    register=NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE
-)
-
-NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_FAILED = ValueMetadata(
-    name='NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_FAILED',
-    value=0,
-    field=NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS
-)
-NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_SUCCESS = ValueMetadata(
-    name='NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_SUCCESS',
-    value=255,
-    field=NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS
+# Registers identical to gh100
+from gpu.regs.gh100.therm import (
+    NV_THERM_I2CS_SCRATCH,
+    NV_THERM_I2CS_SCRATCH_DATA,
+    NV_THERM_I2CS_SCRATCH_DATA_INIT,
+    NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE,
+    NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS,
+    NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_FAILED,
+    NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_SUCCESS,
 )
 

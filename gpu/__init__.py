@@ -21,6 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+from .device_info import GpuDeviceInfo
 from .error import GpuError, GpuPollTimeout, GpuRpcTimeout, FspRpcError
 from .error import UnknownDevice, UnknownGpuError, BrokenGpuError, BrokenGpuErrorWithInfo, BrokenGpuErrorSecFault
 from .fsp_emem_rpc import FspEmemRpc

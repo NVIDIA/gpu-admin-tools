@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -180,9 +180,19 @@ NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUB = ValueMetadata(
     value=24,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
-NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE = ValueMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE',
-    value=19,
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUBMMU = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUBMMU',
+    value=32,
+    field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
+)
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_NVLPW = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_NVLPW',
+    value=28,
+    field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
+)
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_SYSLTC = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_SYSLTC',
+    value=49,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
 

@@ -61,5 +61,5 @@ class HopperNvlink(LagunaNvlink):
 
     def __init__(self, device):
         super().__init__(device)
-        ioctrl_instances = device.device_info_instances[18]
+        ioctrl_instances = device.top.device_info_instances[18]
         self.num_nvlinks = len(ioctrl_instances) * self._links_per_group

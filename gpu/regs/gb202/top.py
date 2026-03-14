@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -38,7 +38,7 @@ NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES = FieldMetadata(
 
 NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES_INIT = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES_INIT',
-    value=153,
+    value=60,
     field=NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES
 )
 
@@ -64,7 +64,7 @@ NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS = FieldMetadata(
 
 NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS_INIT = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS_INIT',
-    value=353,
+    value=152,
     field=NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS
 )
 
@@ -86,7 +86,7 @@ NV_PTOP_DEVICE_INFO2 = ArrayMetadata(
     name='NV_PTOP_DEVICE_INFO2',
     base_address=0x22800,
     stride=4,
-    size=353
+    size=152
 )
 
 NV_PTOP_DEVICE_INFO2_DEV_DEVICE_PRI_BASE = FieldMetadata(
@@ -150,7 +150,7 @@ NV_PTOP_DEVICE_INFO2_DEV_RESET_ID = FieldMetadata(
 
 NV_PTOP_DEVICE_INFO2_DEV_RESET_ID_INVALID = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO2_DEV_RESET_ID_INVALID',
-    value=0,
+    value=255,
     field=NV_PTOP_DEVICE_INFO2_DEV_RESET_ID
 )
 
@@ -180,9 +180,19 @@ NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUB = ValueMetadata(
     value=24,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
-NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE = ValueMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE',
-    value=19,
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUBMMU = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUBMMU',
+    value=32,
+    field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
+)
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_NVLPW = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_NVLPW',
+    value=28,
+    field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
+)
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_SYSLTC = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_SYSLTC',
+    value=49,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
 

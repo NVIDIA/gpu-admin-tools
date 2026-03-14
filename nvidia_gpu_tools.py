@@ -24,7 +24,6 @@
 #
 
 from __future__ import print_function
-import collections
 import time
 import sys
 import traceback
@@ -1006,8 +1005,6 @@ class NvidiaDeviceInternal:
 
 
 class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
-    _cached_device_units = None
-
     @property
     def device_units(self):
         from gpu.units import gpu_units_cached
@@ -1294,38 +1291,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         if unit == "minion":
             return (lambda group, reg: self._nvlink_minion_offset(group, reg))
 
-    @property
-    def device_info_instances(self):
-        assert self.is_hopper_plus
-
-        if self._device_info_instances is not None:
-            return self._device_info_instances
-
-        num_rows = self.regs.read(self.regs.top.NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS)
-
-        in_chain = False
-        devices = []
-        device = []
-        for i in range(0, num_rows):
-            data = self.regs.read(self.regs.top.NV_PTOP_DEVICE_INFO2(i))
-            if in_chain or data != 0:
-                device.append(data.value)
-            in_chain = data.ROW_CHAIN == 1
-            if not in_chain and len(device) != 0:
-                devices.append(device)
-                device = []
-
-        self._device_info_instances = collections.defaultdict(list)
-
-        for d in devices:
-            device_type = (d[0] >> 24) & 0x7f
-            device_inst = (d[0] >> 16) & 0xff
-            self._device_info_instances[device_type].append(device_inst)
-
-        return self._device_info_instances
-
     def _nvlink_query_enabled_links_b100(self):
-        self.nvlink_enabled_links = self.device_info_instances[0x1c]
+        self.nvlink_enabled_links = [info.instance for info in self.top.device_info_instances[self.top.device_types.NVLPW]]
         return self.nvlink_enabled_links
 
     def _nvlink_query_enabled_links(self):
@@ -1528,21 +1495,34 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
     def nvlink_get_link_states_debug_b100(self):
         mse_link_states = self.nvlink_get_link_states()
+        link_stride = 0x40000
+        llu_offset = 0x10000
+        plu_offset = 0x18000
 
         llu_offsets = [
             ("port_state", 0x4004),
         ]
-        plu_offsets = [
-            ("linkup_state", 0x50dc),
+        plu_offsets = []
+        if self.is_blackwell:
+            plu_offsets += [
+                ("linkup_state", 0x50dc),
+            ]
+
+        offsets = [(f"llu {name}", llu_offset + offset) for name, offset in llu_offsets]
+        offsets += [(f"plu {name}", plu_offset + offset) for name, offset in plu_offsets]
+        rlw_offsets = [
+            ("rlw_network_config", 0x40),
         ]
-        offsets = [(f"llu {name}", 0x10000 + offset) for name, offset in llu_offsets]
-        offsets += [(f"plu {name}", 0x18000 + offset) for name, offset in plu_offsets]
 
         for link in self.nvlink_enabled_links:
             debug(f"{self} link {link:02d} MSE state {mse_link_states[link]}")
             for name, offset in offsets:
-                full_offset = 0x3200000 + link * 0x40000 + offset
+                full_offset = 0x3200000 + link * link_stride + offset
                 state = self.read(full_offset)
+                debug(f"{self} link {link:02d} {name} {full_offset:#x} {offset:#x} = {state:#x}")
+            for name, offset in rlw_offsets:
+                full_offset = 0x02020000 + link * 0x40000 + offset
+                state = self.read_bad_ok(full_offset)
                 debug(f"{self} link {link:02d} {name} {full_offset:#x} {offset:#x} = {state:#x}")
 
     def nvlink_get_link_states_b100(self):
@@ -1753,7 +1733,10 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
                 else:
                     combinations.append([(knob, True), (knob, False)])
             elif knob == "cc":
-                combinations.append([(knob, "on"), (knob, "off"), (knob, "devtools")])
+                if self.is_cc_enable_supported:
+                    combinations.append([(knob, "on"), (knob, "off"), (knob, "devtools")])
+                else:
+                    combinations.append([(knob, "off")])
             elif knob == "ppcie":
                 combinations.append([(knob, "on"), (knob, "off")])
             else:
@@ -3324,7 +3307,6 @@ class Gpu(NvidiaDevice):
 
         self.arch = "unknown"
         self.chip = "unknown"
-        self._device_info_instances = None
 
         arch, chip = GpuProperties.get_chip_family(self.device)
         if arch is not None:
@@ -3415,6 +3397,7 @@ class Gpu(NvidiaDevice):
         # Querying ECC state relies on being able to initialize/clear memory
         self.is_ecc_query_supported = self.is_memory_clear_supported
         self.is_cc_query_supported = self.is_hopper_plus
+        self.is_cc_enable_supported = self.is_hopper_plus
         self.is_ppcie_query_supported = self.is_hopper
         self.is_reset_coupling_supported = self.is_hopper
         self.is_bar0_firewall_supported = self.is_blackwell_plus
@@ -3434,6 +3417,11 @@ class Gpu(NvidiaDevice):
             self.is_sxm = "is_sxm" in gpu_extra_props["flags"]
             self.is_pcie = "is_pcie" in gpu_extra_props["flags"]
             self.has_c2c = "has_c2c" in gpu_extra_props["flags"]
+
+        if (self.is_hopper or self.is_blackwell) and self.has_c2c:
+            # Enabling CC is not supported on GH and GB
+            self.is_cc_enable_supported = False
+
 
         self._save_cfg_space()
         self.init_priv_ring()
@@ -3798,6 +3786,9 @@ class Gpu(NvidiaDevice):
 
     def set_cc_mode(self, mode):
         assert self.is_cc_query_supported
+
+        if not self.is_cc_enable_supported and mode != "off":
+            raise GpuError(f"{self} enabling CC is not supported. Only disabling CC is allowed.")
 
         cc_mode = 0x0
         cc_dev_mode = 0x0
@@ -4494,7 +4485,7 @@ class Gpu(NvidiaDevice):
         return mod_id
 
     def read_module_id_b100(self):
-        assert self.is_blackwell
+        assert self.is_blackwell_plus
         self.init_mse()
         info = self.mse.get_platform_info()
         return info.moduleId
@@ -4502,7 +4493,7 @@ class Gpu(NvidiaDevice):
     def read_module_id(self):
         if self.is_hopper and self.is_sxm:
             return self.read_module_id_h100()
-        elif self.is_blackwell and self.is_sxm:
+        elif self.is_blackwell_plus and self.is_sxm:
             return self.read_module_id_b100()
         else:
             raise GpuError(f"{self} unknown module id")

@@ -44,6 +44,9 @@ class GpuUnit:
 # Base class for GPU units that are automatically picked up from gpu/units/
 # See gpu/units/__init__.py for the discovery mechanism
 class GpuUnitAutoBase:
+    # Initialization order - lower values are initialized first
+    order = 10
+
     # Create an instance of the unit for the given device, if applicable
     @classmethod
     def create_instance(cls, device):

@@ -128,11 +128,21 @@ class MseRpc:
         self.send_cmd(1, 0, [0, 0], reset=True)
 
     def portlist_status(self):
-        resp = self.send_cmd(2, 2, [(0x1<<18)-1])
+        LINKS_PER_GROUP = 18
+        num_links = self.device.nvlink_unit.num_nvlinks
+        num_groups = (num_links + LINKS_PER_GROUP - 1) // LINKS_PER_GROUP
+        all_link_states = []
 
+        for group in range(num_groups):
+            group_start = group * LINKS_PER_GROUP
+            group_size = min(LINKS_PER_GROUP, num_links - group_start)
+            local_mask = (1 << group_size) - 1
+            link_mask = local_mask | (group << LINKS_PER_GROUP)
+            resp = self.send_cmd(2, 2, [link_mask])
 
-        links = resp[0]
-        link_states = [link_state for dword in resp[1:] for link_state in (dword & 0xffff, (dword >> 16) & 0xffff)]
+            group_states = [s for dword in resp[1:] for s in (dword & 0xffff, (dword >> 16) & 0xffff)]
+            all_link_states.extend(group_states[:group_size])
+
 
         link_state_map = {
             1: "down",
@@ -146,17 +156,21 @@ class MseRpc:
            10: "physical_up",
         }
 
+        port_status_map = {
+            1: "disabled",
+            2: "enabled",
+            3: "inoperable",
+        }
+
         nice_link_states = []
-        for s in link_states:
+        for s in all_link_states:
             status = s >> 8
-            if status == 1:
-                nice_link_states.append("disabled")
-                continue
-            if status != 2:
-                nice_link_states.append(f"unknown {status:#x}")
-                continue
-            state = s & 0xff
-            nice_link_states.append(link_state_map.get(state, f"unknown {state:#x}"))
+            status_name = port_status_map.get(status, f"unknown_status_{status:#x}")
+            if status_name == "enabled":
+                state = s & 0xff
+                nice_link_states.append(link_state_map.get(state, f"unknown_state_{state:#x}"))
+            else:
+                nice_link_states.append(status_name)
 
         return nice_link_states
 

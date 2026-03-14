@@ -31,7 +31,7 @@ from logging import info, error, warning, debug
 from cli.no_device import main_no_device
 from cli.per_device import main_per_device
 from cli.per_gpu_nvswitch import main_per_gpu_or_nvswitch
-from utils import platform_config, FileMap, int_from_data, read_ints_from_path
+from utils import platform_config, int_from_data, read_ints_from_path
 from pci import PciDevice, PciDevices
 from gpu.defines import *
 from gpu import GpuError, FspRpcError
@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2026.03.11o"
+VERSION = "v2026.03.14o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():

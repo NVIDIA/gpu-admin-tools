@@ -193,6 +193,9 @@ def main_per_gpu(gpu, opts):
         if not gpu.is_gpu() or not gpu.is_cc_query_supported:
             error(f"Configuring CC not supported on {gpu}")
             return False
+        if opts.set_cc_mode != "off" and not gpu.is_cc_enable_supported:
+            error(f"Enabling CC not supported on {gpu}. Only disabling CC is allowed.")
+            return False
 
         try:
             gpu.set_cc_mode(opts.set_cc_mode)
@@ -250,8 +253,8 @@ def main_per_gpu(gpu, opts):
 
 
     if opts.test_cc_mode_switch:
-        if not gpu.is_gpu() or not gpu.is_cc_query_supported:
-            error(f"Configuring CC not supported on {gpu}")
+        if not gpu.is_gpu() or not gpu.is_cc_query_supported or not gpu.is_cc_enable_supported:
+            error(f"CC mode switching not supported on {gpu}")
             return False
         try:
             gpu.test_cc_mode_switch()

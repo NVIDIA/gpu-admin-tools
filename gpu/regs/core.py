@@ -36,14 +36,21 @@ class DeviceMetadata:
 
 class RegisterMetadata:
     """Metadata for a register (name, address, etc.)"""
-    def __init__(self, name, address, priv_level_mask=None):
+    def __init__(self, name, address, priv_level_mask=None, zero_based=False):
         self.name = name
         self.address = address
         self.fields = {}
         self.priv_level_mask = priv_level_mask  # Link to PRIV_LEVEL_MASK register if it exists
+        self.zero_based = zero_based  # True if address is relative and requires a base to read
 
     def add_field(self, field):
         self.fields[field.name] = field
+
+    def fields_sorted_by_lsb(self):
+        return sorted(self.fields.values(), key=lambda x: x.lsb)
+
+    def value_from_int(self, value):
+        return RegisterValue(self, value)
 
     def __str__(self):
         return f"{self.name} @ 0x{self.address:08x} ({len(self.fields)} fields)"
@@ -64,6 +71,9 @@ class FieldMetadata:
 
     def add_value(self, field):
         self.values[field.name] = field
+
+    def raw_value_from_int(self, value):
+        return (value & self.mask) >> self.lsb
 
     def __str__(self):
         reg_name = self.register.name if self.register else "No register"
@@ -100,9 +110,9 @@ class ValueMetadata:
 
 class ArrayMetadata(RegisterMetadata):
     """Metadata for a register array that inherits from RegisterMetadata"""
-    def __init__(self, name, base_address, stride, size, priv_level_mask=None):
+    def __init__(self, name, base_address, stride, size, priv_level_mask=None, zero_based=False):
         # Initialize the RegisterMetadata part with base_address
-        super().__init__(name, base_address, priv_level_mask)
+        super().__init__(name, base_address, priv_level_mask, zero_based=zero_based)
 
         # Add array-specific attributes
         self.stride = stride
@@ -237,11 +247,22 @@ class RegisterValue:
                 raise AttributeError(f"Cannot set '{name}' on RegisterValue. Did you mean one of: "
                                     f"{', '.join(sorted(self._allowed_attrs))}")
 
-    def __str__(self):
-        """Pretty print the register value with fields"""
-        result = [f"{self.metadata.name} {self.metadata.address:#x} = 0x{self.value:08X} ({self.value})"]
-        for field_name, field in self.metadata.fields.items():
+    def _register_prefix(self):
+        reg_name = self.metadata.name
+        if '(' in reg_name:
+            return reg_name[:reg_name.index('(')] + '_'
+        return reg_name + '_'
+
+    def format(self, short_field_names=False, one_line=False, non_zero_only=False, show_value_names=True):
+        """Pretty print register value with optional display flags."""
+        result = [f"{self.metadata.name} {self.metadata.address:#x} = 0x{self.value:08x} ({self.value})"]
+        reg_prefix = self._register_prefix() if short_field_names else None
+
+        for field in self.metadata.fields_sorted_by_lsb():
             field_value = self.get_field(field)
+            if non_zero_only and field_value == 0:
+                continue
+
             # Find named value if exists
             value_name = None
             for val_name, val in field.values.items():
@@ -249,12 +270,39 @@ class RegisterValue:
                     value_name = val_name
                     break
 
-            if value_name:
-                result.append(f"  {field_name} = {value_name} (0x{field_value:X})")
-            else:
-                result.append(f"  {field_name} = 0x{field_value:X}")
+            display_name = field.name
+            if reg_prefix and field.name.startswith(reg_prefix):
+                display_name = field.name[len(reg_prefix):]
+            field_name = f"{display_name}({field.lsb}:{field.msb})"
 
+            if reg_prefix and value_name:
+                if value_name.startswith(reg_prefix):
+                    value_name = value_name[len(reg_prefix):]
+                field_prefix = f"{display_name}_"
+                if value_name.startswith(field_prefix):
+                    value_name = value_name[len(field_prefix):]
+
+            if value_name and show_value_names:
+                result.append(f"  {field_name} = {value_name} 0x{field_value:x} ({field_value})")
+            else:
+                result.append(f"  {field_name} = 0x{field_value:x} ({field_value})")
+
+        if one_line:
+            return " | ".join(result)
         return "\n".join(result)
+
+    def format_short(self, one_line=False, non_zero_only=False, show_value_names=True):
+        """Pretty print register value with register/field prefixes removed."""
+        return self.format(
+            short_field_names=True,
+            one_line=one_line,
+            non_zero_only=non_zero_only,
+            show_value_names=show_value_names,
+        )
+
+    def __str__(self):
+        """Pretty print the register value with fields"""
+        return self.format()
 
     def __int__(self):
         """Convert to integer - allows `int(reg_value)`"""
@@ -315,12 +363,16 @@ class FieldValue:
             return self.value == other.value
         return self.value == other
 
+    def __hash__(self):
+        # Hash combines the field's name and the value
+        # Using field.name instead of field itself because the field might not be hashable
+        return hash((self.field.name, self.value))
+
     def __str__(self):
         """String representation with field information"""
         if self.name:
             return f"{self.name} ({self.field.name}: 0x{self.value:X})"
         return f"{self.field.name}: 0x{self.value:X}"
-
 
 class LazyModuleDescriptor:
     """Descriptor for lazy-loaded modules"""
@@ -386,31 +438,39 @@ class RegisterInterface:
         except (ImportError, AttributeError):
             return False
 
-    def read(self, register_or_field):
+    def _check_base(self, register, base):
+        """Validate base parameter for zero-based registers."""
+        if register.zero_based and not base:
+            raise ValueError(f"Register {register.name} is zero-based and requires a base address")
+
+    def read(self, register_or_field, base=0):
         """Read a register or field from GPU"""
         if isinstance(register_or_field, RegisterMetadata):
-            reg_value = self.gpu.read_bad_ok(register_or_field.address)
+            self._check_base(register_or_field, base)
+            reg_value = self.gpu.read_bad_ok(register_or_field.address + base)
             return RegisterValue(register_or_field, reg_value)
         elif isinstance(register_or_field, FieldMetadata):
-            reg = self.read(register_or_field.register)
+            reg = self.read(register_or_field.register, base=base)
             return reg.get_field(register_or_field)
         else:
             raise TypeError(f"Can't read from {type(register_or_field)}")
 
-    def write(self, register, value):
+    def write(self, register, value, base=0):
         """Write a value to a register"""
         if isinstance(register, RegisterMetadata):
-            self.gpu.write(register.address, value)
+            self._check_base(register, base)
+            self.gpu.write(register.address + base, value)
         else:
             raise TypeError(f"Can't write to {type(register)}")
 
-    def write_field(self, field, value):
+    def write_field(self, field, value, base=0):
         """Write a value to a specific field, preserving other fields"""
         if isinstance(field, FieldMetadata):
-            reg_value = self.gpu.read(field.register.address)
+            self._check_base(field.register, base)
+            reg_value = self.gpu.read(field.register.address + base)
             # Clear field bits and set new value
             new_value = (reg_value & ~field.mask) | ((value << field.lsb) & field.mask)
-            self.gpu.write(field.register.address, new_value)
+            self.gpu.write(field.register.address + base, new_value)
         else:
             raise TypeError(f"Can't write to field {type(field)}")
 

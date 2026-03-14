@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2025-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -38,7 +38,7 @@ NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES = FieldMetadata(
 
 NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES_INIT = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES_INIT',
-    value=153,
+    value=49,
     field=NV_PTOP_DEVICE_INFO_CFG_MAX_DEVICES
 )
 
@@ -64,7 +64,7 @@ NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS = FieldMetadata(
 
 NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS_INIT = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS_INIT',
-    value=353,
+    value=134,
     field=NV_PTOP_DEVICE_INFO_CFG_NUM_ROWS
 )
 
@@ -86,7 +86,7 @@ NV_PTOP_DEVICE_INFO2 = ArrayMetadata(
     name='NV_PTOP_DEVICE_INFO2',
     base_address=0x22800,
     stride=4,
-    size=353
+    size=134
 )
 
 NV_PTOP_DEVICE_INFO2_DEV_DEVICE_PRI_BASE = FieldMetadata(
@@ -107,13 +107,6 @@ NV_PTOP_DEVICE_INFO2_DEV_FAULT_ID_INVALID = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO2_DEV_FAULT_ID_INVALID',
     value=0,
     field=NV_PTOP_DEVICE_INFO2_DEV_FAULT_ID
-)
-
-NV_PTOP_DEVICE_INFO2_DEV_GROUP_ID = FieldMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_GROUP_ID',
-    msb=15,
-    lsb=11,
-    register=NV_PTOP_DEVICE_INFO2
 )
 
 NV_PTOP_DEVICE_INFO2_DEV_INSTANCE_ID = FieldMetadata(
@@ -178,11 +171,6 @@ NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM = FieldMetadata(
 NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUB = ValueMetadata(
     name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUB',
     value=24,
-    field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
-)
-NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE = ValueMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_LCE',
-    value=19,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
 

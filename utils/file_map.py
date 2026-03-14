@@ -23,32 +23,16 @@
 
 import mmap
 
-from utils import platform_config
-
-if platform_config.is_linux:
-    import ctypes
-    libc = ctypes.cdll.LoadLibrary('libc.so.6')
-
-    # Set the mmap and munmap arg and return types.
-    # last mmap arg is off_t which ctypes doesn't have. Assume it's long as that what gcc defines it to.
-    libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_long]
-    libc.mmap.restype = ctypes.c_void_p
-    libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
-    libc.munmap.restype = ctypes.c_int
-
 class FileMap:
-
     def __init__(self, path, offset, size):
         self.size = size
         with open(path, "r+b") as f:
             prot = mmap.PROT_READ | mmap.PROT_WRITE
-            # Try mmap.mmap() first for error checking even if we end up using numpy
             mapped = mmap.mmap(f.fileno(), size, mmap.MAP_SHARED, prot, offset=offset)
             self.mapped = memoryview(mapped)
             self.map_8 = self.mapped.cast("B")
             self.map_16 = self.mapped.cast("H")
             self.map_32 = self.mapped.cast("I")
-
 
     def write8(self, offset, data):
         self.map_8[offset // 1] = data

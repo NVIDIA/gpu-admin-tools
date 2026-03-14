@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,25 +21,15 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-import pkgutil
-import importlib
-from gpu.unit import GpuUnitAutoBase
+class GpuDeviceInfo:
+    """Parsed device info entry from TOP device table."""
+    def __init__(self, type, instance, pri_base):
+        self.type = type
+        self.instance = instance
+        self.pri_base = pri_base
 
-def _load_gpu_units():
-    """Dynamically discover GPU units, sorted by order."""
-    gpu_units = {}
-    for _, module_name, _ in pkgutil.iter_modules(__path__):
-        module = importlib.import_module(f"{__name__}.{module_name}")
-        for item_name in dir(module):
-            item = getattr(module, item_name)
-            if isinstance(item, type) and issubclass(item, GpuUnitAutoBase) and item is not GpuUnitAutoBase:
-                gpu_units[item.name] = item()
-    # Sort by order (lower values first) - dicts preserve insertion order in Python 3.7+
-    return dict(sorted(gpu_units.items(), key=lambda x: x[1].order))
+    def __str__(self):
+        return f"device type {self.type:#x} instance {self.instance} pri {self.pri_base:#x}"
 
-_gpu_units = None
-def gpu_units_cached():
-    global _gpu_units
-    if _gpu_units is None:
-        _gpu_units = _load_gpu_units()
-    return _gpu_units
+    def __repr__(self):
+        return str(self)
