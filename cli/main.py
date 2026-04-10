@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2026.03.16o"
+VERSION = "v2026.04.09o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():

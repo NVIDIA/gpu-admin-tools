@@ -130,7 +130,8 @@ class ArrayMetadata(RegisterMetadata):
         reg = RegisterMetadata(
             name=f"{self.name}({index})",
             address=self.get_address(index),
-            priv_level_mask=self.priv_level_mask
+            priv_level_mask=self.priv_level_mask,
+            zero_based=self.zero_based,
         )
 
         # Use the fields from this array directly
@@ -440,7 +441,7 @@ class RegisterInterface:
 
     def _check_base(self, register, base):
         """Validate base parameter for zero-based registers."""
-        if register.zero_based and not base:
+        if register.zero_based and base is None:
             raise ValueError(f"Register {register.name} is zero-based and requires a base address")
 
     def read(self, register_or_field, base=0):

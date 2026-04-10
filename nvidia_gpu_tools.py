@@ -2713,9 +2713,9 @@ class FspRpc(object):
         return f"{self.device} FSP-RPC"
 
 
-    def send_cmd(self, nvdm_type, data, timeout=5, sync=True, seid=0):
+    def send_cmd(self, nvdm_type, data, timeout=5, sync=True, seid=0, receive_ready_timeout=5):
         mctp_header = MctpHeader()
-        mctp_header.seid = 0
+        mctp_header.seid = seid
         mctp_msg_header = MctpMessageHeader()
         max_packet_size = self.transport.max_packet_size_bytes // 4
 
@@ -2730,7 +2730,7 @@ class FspRpc(object):
         pdata = pdata[:max_packet_size]
 
         debug(f"{self} sending first packet. Total size {total_size * 4} bytes. First packet {len(pdata) * 4} bytes")
-        self.transport.send_data(pdata)
+        self.transport.send_data(pdata, receive_ready_timeout=receive_ready_timeout)
 
         while len(remaining_data) != 0:
             mctp_header.som = 0
@@ -2742,7 +2742,7 @@ class FspRpc(object):
             pdata = pdata[:max_packet_size]
 
             debug(f"Sending extra packet {len(pdata) * 4} bytes remaining data {len(remaining_data) * 4} bytes")
-            self.transport.send_data(pdata)
+            self.transport.send_data(pdata, receive_ready_timeout=receive_ready_timeout)
 
         if not sync:
             return
@@ -2900,7 +2900,7 @@ class FspRpc(object):
         for i in range(0, len(packed_message), 4):
             send_message.append(int.from_bytes(packed_message[i:i+4], byteorder='little'))
 
-        return self.send_cmd(0x17, send_message, timeout=5)
+        return self.send_cmd(0x17, send_message, timeout=5, receive_ready_timeout=12)
 
     def inforom_write(self, object_name, object_size, object_offset, data):
         import struct
@@ -2936,6 +2936,52 @@ class FspRpc(object):
 
     def recreate_inforom_fs(self):
         self.send_cmd(0x17, [0x5], timeout=10)
+
+    def rom_read_nvdm(self, offset, size, receive_ready_timeout=5):
+        if size <= 0 or (size % 4) != 0:
+            raise GpuError(f"{self} ROM Read size {size} must be positive and multiple of 4")
+        send_message = [offset, size, 0]
+        return self.send_cmd(0x1A, send_message, timeout=10, seid=1, receive_ready_timeout=receive_ready_timeout)
+
+    def rom_read_range(self, start_offset, size, chunk_size=1004, progress_callback=None):
+        """Read ROM bytes from start_offset for size bytes in chunks."""
+        import struct
+        data = bytearray()
+        offset = start_offset
+        remaining = size
+        current_chunk_size = chunk_size
+        min_chunk_size = 64
+        receive_ready_timeout = 15
+        total_read = 0
+        while remaining > 0:
+            read_size = min(current_chunk_size, remaining)
+            read_size = (read_size // 4) * 4
+            if read_size == 0 and remaining > 0:
+                read_size = 4
+            try:
+                chunk_words = self.rom_read_nvdm(offset, read_size, receive_ready_timeout=receive_ready_timeout)
+            except (GpuRpcTimeout, FspRpcError, GpuError):
+                if current_chunk_size > min_chunk_size:
+                    current_chunk_size = max(current_chunk_size // 2, min_chunk_size)
+                    debug(f"{self} ROM Read failed at offset {offset:#x}, retrying with chunk size {current_chunk_size:#x}")
+                    continue
+                raise
+            expected_dwords = read_size // 4
+            if len(chunk_words) != expected_dwords:
+                raise GpuError(
+                    f"{self} ROM read at offset {offset:#x}: expected {expected_dwords} DWORDs ({read_size} bytes), got {len(chunk_words)}. "
+                    "Check FSP transport (use FspMnocRpc for Blackwell)."
+                )
+            chunk_bytes = b''.join(struct.pack("<I", w) for w in chunk_words)[:read_size]
+            data.extend(chunk_bytes)
+            offset += read_size
+            remaining -= read_size
+            total_read += read_size
+            if progress_callback:
+                progress_callback(total_read, size)
+            if current_chunk_size < chunk_size:
+                current_chunk_size = min(current_chunk_size * 2, chunk_size)
+        return data
 
     def download_dmem_log(self, timeout=10):
         """Download DMEM log using MCTP VDM IANA protocol."""
@@ -3432,6 +3478,7 @@ class Gpu(NvidiaDevice):
         self.bar0_window_base = 0
         self.bar0_window_initialized = False
         self.bios = None
+        self.inforom_fs_data = None
         self.falcons = None
         self.falcon_for_dma = None
         self.falcons_cfg = gpu_props.get("falcons_cfg", {})

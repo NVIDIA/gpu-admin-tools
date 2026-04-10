@@ -21,6 +21,8 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+import time
+
 from .error import GpuError, GpuPollTimeout, GpuRpcTimeout
 
 from logging import debug
@@ -61,19 +63,19 @@ class GpuMnoc:
     def poll_for_message_ready(self, timeout=1):
         self.device.poll_register(f"{self} message ready", self.offset_info_send_mbox, value=0x1<<24, timeout=timeout, mask=0x1<<24, sleep_interval=0.001)
 
-    def poll_for_receive_ready(self):
-        self.device.poll_register(f"{self} receive ready", self.offset_info_receive_mbox, value=0x1<<24, timeout=5, mask=0x1<<24, sleep_interval=0.001)
+    def poll_for_receive_ready(self, timeout=5):
+        self.device.poll_register(f"{self} receive ready", self.offset_info_receive_mbox, value=0x1<<24, timeout=timeout, mask=0x1<<24, sleep_interval=0.001)
 
     def poll_for_receive_credits(self):
         self.device.poll_register(f"{self} credits", self.offset_info_receive_mbox, value=0x1<<26, timeout=1, mask=0x1<<26, sleep_interval=0.001)
 
-    def send_data(self, data):
+    def send_data(self, data, receive_ready_timeout=5):
         size = len(data) * 4
 
         # Before sending data, we just need to check for receive ready. Any
         # errors would be about previous messages and we can ignore them. If we
         # can trigger a new message it will clear the error.
-        self.poll_for_receive_ready()
+        self.poll_for_receive_ready(timeout=receive_ready_timeout)
 
         msg_metadata = size
         msg_metadata |= 0x1 << 20
@@ -114,7 +116,8 @@ class GpuMnoc:
         data = []
         received = 0
         while received < msg_size:
-            data.append(self.device.read(self.offset_rdata_send_mbox))
+            value = self.device.read_bad_ok(self.offset_rdata_send_mbox)
+            data.append(value)
             received += 4
 
         self.check_send_mbox_errors()
