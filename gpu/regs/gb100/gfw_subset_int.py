@@ -1,0 +1,262 @@
+#
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+
+from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
+
+
+# Register definitions
+NV_R_URHLCNAU = RegisterMetadata(
+    name='NV_R_URHLCNAU',
+    address=0x1498
+)
+
+NV_R_URHLCNAU_F_STVXDWPW = FieldMetadata(
+    name='NV_R_URHLCNAU_F_STVXDWPW',
+    msb=8,
+    lsb=8,
+    register=NV_R_URHLCNAU
+)
+
+NV_R_URHLCNAU_F_JSOMDIEJ = FieldMetadata(
+    name='NV_R_URHLCNAU_F_JSOMDIEJ',
+    msb=9,
+    lsb=9,
+    register=NV_R_URHLCNAU
+)
+
+NV_R_URHLCNAU_F_FOEUOQKS = FieldMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS',
+    msb=7,
+    lsb=0,
+    register=NV_R_URHLCNAU
+)
+
+NV_R_URHLCNAU_F_FOEUOQKS_V_LCSGGZZT = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_LCSGGZZT',
+    value=2,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_IYUGIXGA = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_IYUGIXGA',
+    value=3,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_PDKADLYJ = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_PDKADLYJ',
+    value=5,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_UUKUCAVT = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_UUKUCAVT',
+    value=14,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_ZJDXZEIQ = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_ZJDXZEIQ',
+    value=15,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_BEERCADZ = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_BEERCADZ',
+    value=16,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_YMXUXRCP = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_YMXUXRCP',
+    value=17,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_LHIDWHYH = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_LHIDWHYH',
+    value=18,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_XFPXHKPK = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_XFPXHKPK',
+    value=19,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_MORUVMAI = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_MORUVMAI',
+    value=20,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_KDKGQAAM = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_KDKGQAAM',
+    value=21,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_JFYGAVQY = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_JFYGAVQY',
+    value=22,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_SBOTVQUW = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_SBOTVQUW',
+    value=23,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_XUNVIIPU = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_XUNVIIPU',
+    value=24,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_GXXQFJOX = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_GXXQFJOX',
+    value=6,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_SSAQAUYP = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_SSAQAUYP',
+    value=7,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_MSQWSOOD = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_MSQWSOOD',
+    value=8,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_KIGXAQWE = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_KIGXAQWE',
+    value=9,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_FZTPJZXY = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_FZTPJZXY',
+    value=10,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_ZXLJTQRZ = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_ZXLJTQRZ',
+    value=11,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_FOPDMXPN = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_FOPDMXPN',
+    value=12,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_VLSXKBSW = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_VLSXKBSW',
+    value=13,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_IQFPOAMQ = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_IQFPOAMQ',
+    value=4,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+NV_R_URHLCNAU_F_FOEUOQKS_V_IYSAZGZP = ValueMetadata(
+    name='NV_R_URHLCNAU_F_FOEUOQKS_V_IYSAZGZP',
+    value=1,
+    field=NV_R_URHLCNAU_F_FOEUOQKS
+)
+
+NV_R_URHLCNAU_STATUS = FieldMetadata(
+    name='NV_R_URHLCNAU_STATUS',
+    msb=7,
+    lsb=0,
+    register=NV_R_URHLCNAU
+)
+
+NV_R_URHLCNAU_STATUS_V_UUXHHBHV = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_UUXHHBHV',
+    value=5,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_KISGFKTQ = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_KISGFKTQ',
+    value=3,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_XRYTKQIA = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_XRYTKQIA',
+    value=1,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_BUEAUWOT = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_BUEAUWOT',
+    value=12,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_SWQGTAHD = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_SWQGTAHD',
+    value=7,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_ELFPBSDW = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_ELFPBSDW',
+    value=6,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_DEGLMMQM = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_DEGLMMQM',
+    value=4,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_LLJYZPOG = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_LLJYZPOG',
+    value=2,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_HRBAPKJH = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_HRBAPKJH',
+    value=13,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_ZIXPEGCF = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_ZIXPEGCF',
+    value=8,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_ZAVHFCMQ = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_ZAVHFCMQ',
+    value=10,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_MHLMLFZA = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_MHLMLFZA',
+    value=11,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_NLLQALRD = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_NLLQALRD',
+    value=9,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_CLOEANJZ = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_CLOEANJZ',
+    value=255,
+    field=NV_R_URHLCNAU_STATUS
+)
+NV_R_URHLCNAU_STATUS_V_LVDKOIRS = ValueMetadata(
+    name='NV_R_URHLCNAU_STATUS_V_LVDKOIRS',
+    value=0,
+    field=NV_R_URHLCNAU_STATUS
+)
+
+NV_R_LPKLJSFO = RegisterMetadata(
+    name='NV_R_LPKLJSFO',
+    address=0x149c
+)
+

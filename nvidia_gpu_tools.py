@@ -1720,13 +1720,19 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         return self.knobs_set(knobs_to_reset, assume_no_pending_settings)
 
     def knobs_reset_to_defaults_test(self):
+        knob_defaults = self.knob_defaults
+        if "ppcie" in knob_defaults and not self.is_ppcie_prc_supported():
+            debug(f"{self} does not support PPCIe on current FW, skipping PPCIe knob reset test")
+            knob_defaults = knob_defaults.copy()
+            del knob_defaults["ppcie"]
+
         self.reset_with_os()
-        modified = self.knobs_set(self.knob_defaults, True)
+        modified = self.knobs_set(knob_defaults, True)
         if len(modified) != 0:
             self.reset_with_os()
 
         combinations = []
-        for knob, value in self.knob_defaults.items():
+        for knob, value in knob_defaults.items():
             if isinstance(value, bool):
                 if knob == "ecc" and not self.is_ampere_plus:
                     combinations.append([("ecc", True)])
@@ -1759,29 +1765,29 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
                 if test_knobs_check != test_knobs:
                     raise GpuError(f"{self} knobs not matching after reset {test_knobs_check} != {test_knobs}")
 
-            modified = self.knobs_reset_to_defaults(["all"], True)
+            modified = self.knobs_reset_to_defaults(list(knob_defaults), True)
 
             if not cc_or_ppcie:
                 for knob, value in test_knobs.items():
-                    if self.knob_defaults[knob] != value:
+                    if knob_defaults[knob] != value:
                         if knob not in modified:
-                            raise GpuError(f"{self} knob {knob} not modified as expected, test {test_knobs} defaults {self.knob_defaults}")
+                            raise GpuError(f"{self} knob {knob} not modified as expected, test {test_knobs} defaults {knob_defaults}")
                 for modified_knob in modified:
-                    if self.knob_defaults[modified_knob] == test_knobs[modified_knob]:
-                        raise GpuError(f"{self} knob {knob} modified unnecessarily, test {test_knobs} defaults {self.knob_defaults}")
+                    if knob_defaults[modified_knob] == test_knobs[modified_knob]:
+                        raise GpuError(f"{self} knob {knob} modified unnecessarily, test {test_knobs} defaults {knob_defaults}")
             else:
-                if set(modified) != set(self.knob_defaults.keys()):
-                    raise GpuError(f"{self} CC/PPCIE on but not all knobs were modified, test {modified} defaults {self.knob_defaults}")
+                if set(modified) != set(knob_defaults.keys()):
+                    raise GpuError(f"{self} CC/PPCIE on but not all knobs were modified, test {modified} defaults {knob_defaults}")
 
             self.reset_with_os()
             debug(f"{self} test knobs modified {modified}")
 
             current = self.knobs_query(test_knobs.keys())
-            if current != self.knob_defaults:
-                raise GpuError(f"{self} knobs not matching after reset {current} != {self.knob_defaults}")
+            if current != knob_defaults:
+                raise GpuError(f"{self} knobs not matching after reset {current} != {knob_defaults}")
 
         self.reset_with_os()
-        modified = self.knobs_set(self.knob_defaults, True)
+        modified = self.knobs_set(knob_defaults, True)
         if len(modified) != 0:
             self.reset_with_os()
 
@@ -1805,6 +1811,15 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         return knob_state
 
+    def set_prc_knob(self, knob_id, value):
+        assert self.has_fsp
+
+        self._init_fsp_rpc()
+
+        self.fsp_rpc.prc_knob_write(knob_id, value)
+        readback = self.fsp_rpc.prc_knob_read(knob_id)
+        return readback
+
     def set_ppcie_mode(self, mode):
         assert self.is_ppcie_query_supported
 
@@ -1822,6 +1837,8 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         self._init_fsp_rpc()
 
+        self.check_ppcie_prc_supported()
+
         cc_knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_CCM.value)
         if cc_knob_value == 1:
             info(f"CC is currently active. It will be turned off before switching to PPCIe.")
@@ -1836,6 +1853,27 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
 
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_BAR0_DECOUPLER.value, bar0_decoupler_val)
         self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, ppcie_mode)
+
+    def check_ppcie_prc_supported(self):
+        try:
+            self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_PPCIE.value)
+        except FspRpcError as err:
+            if err.is_invalid_knob_error:
+                debug(f"{self} does not support PPCIe on current FW")
+            raise
+
+    def is_ppcie_prc_supported(self):
+        if not self.is_ppcie_query_supported:
+            return False
+
+        self._init_fsp_rpc()
+        try:
+            self.check_ppcie_prc_supported()
+        except FspRpcError as err:
+            if err.is_invalid_knob_error:
+                return False
+            raise
+        return True
 
     def query_ppcie_settings(self):
         assert self.is_ppcie_query_supported
@@ -3867,9 +3905,9 @@ class Gpu(NvidiaDevice):
                     raise
 
         if cc_mode == 0x1:
-            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
-            self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_4.value, 0x0)
             if self.is_hopper:
+                self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_2.value, 0x0)
+                self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_4.value, 0x0)
                 self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_34.value, 0x0)
             if ppcie_supported:
                 self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_PPCIE.value, 0x0)
@@ -4153,10 +4191,10 @@ class Gpu(NvidiaDevice):
         org_mode = self.query_cc_mode()
 
         self._init_fsp_rpc()
-        toggle_2 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_1.value) == 0x1
-        toggle_4 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_3.value) == 0x1
-        toggle_34 = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_33.value) == 0x1 and self.is_hopper
-        prev_34_state = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_34.value)
+        toggle_2 = self.is_hopper and self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_1.value) == 0x1
+        toggle_4 = self.is_hopper and self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_3.value) == 0x1
+        toggle_34 = self.is_hopper and self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_33.value) == 0x1
+        prev_34_state = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_34.value) if self.is_hopper else None
         info(f"{self} test CC switching org_mode {org_mode} toggle_2 {toggle_2} toggle_4 {toggle_4} toggle_34 {toggle_34}")
 
         prev_mode = org_mode
@@ -4179,7 +4217,7 @@ class Gpu(NvidiaDevice):
                 debug(f"{self} CC switched to {mode} in iter {iter}")
                 prev_mode = new_mode
 
-                if not toggle_34:
+                if self.is_hopper and not toggle_34:
                     knob_34_state = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_34.value)
                     if prev_34_state != knob_34_state:
                         raise GpuError(f"{self} knob 34 changed unexpectedly in iter {iter}, from {prev_34_state} to {knob_34_state}")

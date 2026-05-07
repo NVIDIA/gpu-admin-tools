@@ -21,48 +21,29 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
+# GPU unit auto-discovery. Only modules in this directory are scanned —
+# concrete unit implementations in gpu/units/ are imported lazily by
+# each auto class's create_instance().
 
+import pkgutil
+import importlib
+from gpu.unit import GpuUnitAutoBase
 
-# Register definitions
-NV_R_BGXGWTUE = RegisterMetadata(
-    name='NV_R_BGXGWTUE',
-    address=0x1182cc
-)
+def _load_gpu_units():
+    """Dynamically discover GPU units, sorted by order."""
+    gpu_units = {}
+    for _, module_name, _ in pkgutil.iter_modules(__path__):
+        module = importlib.import_module(f"{__name__}.{module_name}")
+        for item_name in dir(module):
+            item = getattr(module, item_name)
+            if isinstance(item, type) and issubclass(item, GpuUnitAutoBase) and item is not GpuUnitAutoBase:
+                gpu_units[item.name] = item()
+    # Sort by order (lower values first) - dicts preserve insertion order in Python 3.7+
+    return dict(sorted(gpu_units.items(), key=lambda x: x[1].order))
 
-NV_R_BGXGWTUE_F_GVFZRLYZ = FieldMetadata(
-    name='NV_R_BGXGWTUE_F_GVFZRLYZ',
-    msb=7,
-    lsb=7,
-    register=NV_R_BGXGWTUE
-)
-
-NV_R_BGXGWTUE_F_GVFZRLYZ_FALSE = ValueMetadata(
-    name='NV_R_BGXGWTUE_F_GVFZRLYZ_FALSE',
-    value=0,
-    field=NV_R_BGXGWTUE_F_GVFZRLYZ
-)
-NV_R_BGXGWTUE_F_GVFZRLYZ_TRUE = ValueMetadata(
-    name='NV_R_BGXGWTUE_F_GVFZRLYZ_TRUE',
-    value=1,
-    field=NV_R_BGXGWTUE_F_GVFZRLYZ
-)
-
-NV_R_BGXGWTUE_F_MDWOYFKM = FieldMetadata(
-    name='NV_R_BGXGWTUE_F_MDWOYFKM',
-    msb=8,
-    lsb=8,
-    register=NV_R_BGXGWTUE
-)
-
-NV_R_BGXGWTUE_F_MDWOYFKM_FALSE = ValueMetadata(
-    name='NV_R_BGXGWTUE_F_MDWOYFKM_FALSE',
-    value=0,
-    field=NV_R_BGXGWTUE_F_MDWOYFKM
-)
-NV_R_BGXGWTUE_F_MDWOYFKM_TRUE = ValueMetadata(
-    name='NV_R_BGXGWTUE_F_MDWOYFKM_TRUE',
-    value=1,
-    field=NV_R_BGXGWTUE_F_MDWOYFKM
-)
-
+_gpu_units = None
+def gpu_units_cached():
+    global _gpu_units
+    if _gpu_units is None:
+        _gpu_units = _load_gpu_units()
+    return _gpu_units

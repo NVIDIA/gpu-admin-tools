@@ -25,6 +25,17 @@ import importlib
 import importlib.util
 import os
 
+
+def _copy_debug_dump(debug_dump):
+    if debug_dump is None:
+        return {}
+    copied = dict(debug_dump)
+    dimensions = copied.get("dimensions")
+    if isinstance(dimensions, dict):
+        copied["dimensions"] = dict(dimensions)
+    return copied
+
+
 class DeviceMetadata:
     def __init__(self, name: str, start_address: int, end_address: int):
         self.name = name
@@ -36,12 +47,13 @@ class DeviceMetadata:
 
 class RegisterMetadata:
     """Metadata for a register (name, address, etc.)"""
-    def __init__(self, name, address, priv_level_mask=None, zero_based=False):
+    def __init__(self, name, address, priv_level_mask=None, zero_based=False, debug_dump=None):
         self.name = name
         self.address = address
         self.fields = {}
         self.priv_level_mask = priv_level_mask  # Link to PRIV_LEVEL_MASK register if it exists
         self.zero_based = zero_based  # True if address is relative and requires a base to read
+        self.debug_dump = _copy_debug_dump(debug_dump)
 
     def add_field(self, field):
         self.fields[field.name] = field
@@ -110,9 +122,9 @@ class ValueMetadata:
 
 class ArrayMetadata(RegisterMetadata):
     """Metadata for a register array that inherits from RegisterMetadata"""
-    def __init__(self, name, base_address, stride, size, priv_level_mask=None, zero_based=False):
+    def __init__(self, name, base_address, stride, size, priv_level_mask=None, zero_based=False, debug_dump=None):
         # Initialize the RegisterMetadata part with base_address
-        super().__init__(name, base_address, priv_level_mask, zero_based=zero_based)
+        super().__init__(name, base_address, priv_level_mask, zero_based=zero_based, debug_dump=debug_dump)
 
         # Add array-specific attributes
         self.stride = stride
@@ -132,6 +144,7 @@ class ArrayMetadata(RegisterMetadata):
             address=self.get_address(index),
             priv_level_mask=self.priv_level_mask,
             zero_based=self.zero_based,
+            debug_dump=self.debug_dump,
         )
 
         # Use the fields from this array directly

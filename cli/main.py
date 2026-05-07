@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2026.04.09o"
+VERSION = "v2026.05.07o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -123,6 +123,9 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       "This prints the lower level setting knobs that will take effect upon GPU or switch reset.")
     argp.add_argument("--query-prc-knobs", action='store_true', default=False,
                       help="Query all the Product Reconfiguration (PRC) knobs.")
+    argp.add_argument("--set-prc-knob", type=auto_int, nargs=2, metavar=("INDEX", "VALUE"),
+                      help="Set a Product Reconfiguration (PRC) knob by index to the specified value. "
+                      "Both INDEX and VALUE accept decimal or hexadecimal (0x-prefixed) integers.")
     argp.add_argument("--set-cc-mode", choices=["off", "on", "devtools"],
                       help="Configure Confidentail Computing (CC) mode. The choices are off (disabled), on (enabled) or devtools (enabled in DevTools mode)."
                       "The GPU needs to be reset to make the selected mode active. See --reset-after-cc-mode-switch for one way of doing it.")

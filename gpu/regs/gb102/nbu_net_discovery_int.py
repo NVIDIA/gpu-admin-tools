@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,29 +21,17 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from ..unit import GpuUnitAutoBase
+from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
 
-class NvlinkAuto(GpuUnitAutoBase):
-    name = "nvlink"
 
-    @classmethod
-    def create_instance(cls, device):
-        if device.is_nvswitch():
-            if device.is_laguna_plus:
-                from .nvlink_hopper import LagunaNvlink
-                return LagunaNvlink(device)
-            return None
+# Registers identical to gb100
+from gpu.regs.gb100.nbu_net_discovery_int import (
+    NV_R_JNQPXUWH,
+    NV_R_TIYQJVBI,
+    NV_R_YMHQORTY,
+    NV_R_DCYOUALB,
+    NV_R_QREIAGKN,
+    NV_R_XLMTINBC,
+    NV_R_HHFZGPBS,
+)
 
-        if device.is_blackwell_plus:
-            from .nvlink_blackwell import BlackwellNvlink
-            return BlackwellNvlink(device)
-
-        if device.is_hopper_plus:
-            from .nvlink_hopper import HopperNvlink
-            return HopperNvlink(device)
-
-        if device.is_ampere_100:
-            from .nvlink_ampere import AmpereNvlink
-            return AmpereNvlink(device)
-
-        return None

@@ -28,6 +28,7 @@ from logging import debug, warning, error, info
 from utils import sysfs
 from utils.binaries import read_bin_ucode
 from gpu import GpuError, FspRpcError
+from gpu.prc import PrcKnob
 
 
 def verify_boot(device):
@@ -113,6 +114,28 @@ def main_per_gpu_or_nvswitch(device, opts):
         for name, value in prc_knobs:
             info(f"  {name} = {value}")
 
+    if opts.set_prc_knob is not None:
+        if not device.has_fsp:
+            error(f"Setting PRC knobs is not supported on {device}")
+            return False
+
+        knob_id, knob_value = opts.set_prc_knob
+        knob_name = PrcKnob.str_from_knob_id(knob_id)
+        try:
+            readback = device.set_prc_knob(knob_id, knob_value)
+        except GpuError as err:
+            if isinstance(err, FspRpcError) and err.is_invalid_knob_error:
+                error(f"{device} PRC knob {knob_name} is not supported on current FW.")
+                return False
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            device.debug_dump()
+            prc_knobs = device.query_prc_knobs()
+            debug(f"{device} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+        info(f"{device} PRC knob {knob_name} set to {knob_value:#x} (readback: {readback:#x}).")
 
     if opts.set_ppcie_mode:
         if not device.is_ppcie_query_supported:

@@ -115,8 +115,8 @@ class FspEmemRpc:
             if sleep_interval > 0.0:
                 time.sleep(sleep_interval)
 
-    def send_data(self, data):
-        self.poll_for_queue_empty()
+    def send_data(self, data, receive_ready_timeout=5):
+        self.poll_for_queue_empty(timeout=receive_ready_timeout)
 
         debug(f"{self} packet {[hex(d) for d in data[:20]]}...")
         self.falcon.write_emem(data, phys_base=self.nvdm_emem_base, port=self.channel_num)

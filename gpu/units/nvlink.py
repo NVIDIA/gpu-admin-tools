@@ -68,6 +68,7 @@ class NvlinkBase(GpuUnit):
 
         return True
 
+
 class NvlinkFspInterface:
     def block_nvlinks(self, nvlinks):
         self.device._init_fsp_rpc()

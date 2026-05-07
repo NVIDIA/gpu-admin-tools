@@ -37,6 +37,9 @@ class GpuUnit:
     def debug_print(self):
         pass
 
+    def debug_dump_capture(self, capture, options):
+        del capture, options
+
     def __str__(self):
         return f"{self.device} {self.name}"
 

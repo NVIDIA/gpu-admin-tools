@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,36 +21,25 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from ..unit import GpuUnit
+from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
 
-from logging import info
 
-class GpuC2C(GpuUnit):
-    name = "c2c"
+# Register definitions
+NV_R_ZXCXJFYF = RegisterMetadata(
+    name='NV_R_ZXCXJFYF',
+    address=0x50dc
+)
 
-    num_links = 10
+NV_R_ZXCXJFYF_F_JKKXLPAF = FieldMetadata(
+    name='NV_R_ZXCXJFYF_F_JKKXLPAF',
+    msb=3,
+    lsb=0,
+    register=NV_R_ZXCXJFYF
+)
 
-    def __init__(self, gpu):
-        super().__init__(gpu)
-        gpu.c2c = self
+NV_R_ZXCXJFYF_F_JKKXLPAF_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_ZXCXJFYF_F_JKKXLPAF_V_ZRRJKDVX',
+    value=3,
+    field=NV_R_ZXCXJFYF_F_JKKXLPAF
+)
 
-        self.instances = self.device.top.device_info_instances[0x19]
-
-    def firmware_status(self):
-        regs = self.device.regs.gfw_subset_int
-        reg = self.device.regs.read(regs.NV_R_URHLCNAU)
-        status = reg.STATUS
-        if status == regs.NV_R_URHLCNAU_STATUS_V_LVDKOIRS:
-            return "not started"
-        if status == regs.NV_R_URHLCNAU_STATUS_V_CLOEANJZ:
-            return "up"
-        return f"fail {int(reg):#x}"
-
-    def debug_dump_capture(self, capture, _options):
-        capture.register(self.device.regs.gfw_subset_int.NV_R_URHLCNAU)
-
-    def debug_print(self):
-        info(f"{self.device} C2C firmware status {self.firmware_status()} num links {self.num_links} instances {self.instances}")
-
-class GpuC2CBlackwell(GpuC2C):
-    num_links = 14

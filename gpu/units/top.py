@@ -22,7 +22,7 @@
 #
 
 import collections
-from ..unit import GpuUnit, GpuUnitAutoBase
+from ..unit import GpuUnit
 from ..device_info import GpuDeviceInfo
 
 
@@ -84,16 +84,3 @@ class GpuTopHopper(GpuTop):
                 device_offset = 0
 
         return self._device_info_instances
-
-
-class GpuTopAuto(GpuUnitAutoBase):
-    name = "top"
-    order = 0  # Initialize first - other units may depend on device info
-
-    @classmethod
-    def create_instance(cls, device):
-        if not device.is_gpu() or not device.is_hopper_plus:
-            return None
-
-
-        return GpuTopHopper(device)
