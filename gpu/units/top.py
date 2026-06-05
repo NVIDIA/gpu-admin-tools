@@ -43,15 +43,23 @@ class GpuTop(GpuUnit):
     name = "top"
     device_types = None  # Set by subclass to DeviceTypes instance
 
+    def __init__(self, gpu):
+        super().__init__(gpu)
+        gpu.top = self
+        self.regs = gpu.regs
+        self._device_info_instances = None
+        self.num_fbpas = int(self.regs.read(self.regs.top_int.NV_R_WTQAYGOT, check_bad=True).VALUE)
+        self.num_ltcs = int(self.regs.read(self.regs.top_int.NV_R_RLGXXLDD, check_bad=True).VALUE)
+        self.num_slices_per_ltc = int(
+            self.regs.read(self.regs.top_int.NV_R_KMZTDFMK, check_bad=True).VALUE
+        )
+
 
 class GpuTopHopper(GpuTop):
     """Hopper/Blackwell TOP using DEVICE_INFO2 array."""
 
     def __init__(self, gpu):
         super().__init__(gpu)
-        gpu.top = self
-        self.regs = gpu.regs
-        self._device_info_instances = None
         self.device_types = DeviceTypes(gpu.regs.top.NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM)
 
     @property

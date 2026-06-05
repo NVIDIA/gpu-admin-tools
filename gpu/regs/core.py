@@ -33,7 +33,16 @@ def _copy_debug_dump(debug_dump):
     dimensions = copied.get("dimensions")
     if isinstance(dimensions, dict):
         copied["dimensions"] = dict(dimensions)
+    tags = copied.get("tags")
+    if tags is not None:
+        copied["tags"] = _debug_dump_tags(tags)
     return copied
+
+
+def _debug_dump_tags(tags):
+    if isinstance(tags, str):
+        return [tags]
+    return list(tags)
 
 
 class DeviceMetadata:
@@ -456,15 +465,17 @@ class RegisterInterface:
         """Validate base parameter for zero-based registers."""
         if register.zero_based and base is None:
             raise ValueError(f"Register {register.name} is zero-based and requires a base address")
+        return 0 if base is None else base
 
-    def read(self, register_or_field, base=0):
+    def read(self, register_or_field, base=None, check_bad=False):
         """Read a register or field from GPU"""
         if isinstance(register_or_field, RegisterMetadata):
-            self._check_base(register_or_field, base)
-            reg_value = self.gpu.read_bad_ok(register_or_field.address + base)
+            base = self._check_base(register_or_field, base)
+            read = self.gpu.read if check_bad else self.gpu.read_bad_ok
+            reg_value = read(register_or_field.address + base)
             return RegisterValue(register_or_field, reg_value)
         elif isinstance(register_or_field, FieldMetadata):
-            reg = self.read(register_or_field.register, base=base)
+            reg = self.read(register_or_field.register, base=base, check_bad=check_bad)
             return reg.get_field(register_or_field)
         else:
             raise TypeError(f"Can't read from {type(register_or_field)}")

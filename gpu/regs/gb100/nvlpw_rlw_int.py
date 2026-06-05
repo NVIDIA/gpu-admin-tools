@@ -36824,7 +36824,8 @@ NV_R_MLYKOQOW_F_QCPCCIGH_V_GQHYEKHS = ValueMetadata(
 NV_R_PKBZFQKL = RegisterMetadata(
     name='NV_R_PKBZFQKL',
     address=0x2418,
-    priv_level_mask=NV_R_HNWAMEIZ
+    priv_level_mask=NV_R_HNWAMEIZ,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_PKBZFQKL_F_CDFPSBFH = FieldMetadata(
@@ -37285,7 +37286,8 @@ NV_R_CAFANCBQ_F_QCPCCIGH_ENABLE = ValueMetadata(
 NV_R_FBUFCMUO = RegisterMetadata(
     name='NV_R_FBUFCMUO',
     address=0x2420,
-    priv_level_mask=NV_R_BRZMFIYK
+    priv_level_mask=NV_R_BRZMFIYK,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_FBUFCMUO_F_CDFPSBFH = FieldMetadata(
@@ -38201,7 +38203,8 @@ NV_R_YGLPAWJV_F_QCPCCIGH_V_MPYJDZDO = ValueMetadata(
 NV_R_SGWZAWFP = RegisterMetadata(
     name='NV_R_SGWZAWFP',
     address=0x2400,
-    priv_level_mask=NV_R_BRZMFIYK
+    priv_level_mask=NV_R_BRZMFIYK,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_SGWZAWFP_F_CDFPSBFH = FieldMetadata(
@@ -39024,7 +39027,8 @@ NV_R_RCNVWROS_F_QCPCCIGH_V_GQHYEKHS = ValueMetadata(
 NV_R_COSVTYMZ = RegisterMetadata(
     name='NV_R_COSVTYMZ',
     address=0x5418,
-    priv_level_mask=NV_R_IHIBYBMK
+    priv_level_mask=NV_R_IHIBYBMK,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_COSVTYMZ_F_SYXHRXSM = FieldMetadata(
@@ -39171,7 +39175,8 @@ NV_R_ZANZLATS_F_QCPCCIGH_ENABLE = ValueMetadata(
 NV_R_DMJBYUJE = RegisterMetadata(
     name='NV_R_DMJBYUJE',
     address=0x5420,
-    priv_level_mask=NV_R_IUTOYLMO
+    priv_level_mask=NV_R_IUTOYLMO,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_DMJBYUJE_F_SYXHRXSM = FieldMetadata(
@@ -39411,7 +39416,8 @@ NV_R_BOJXZVTQ_F_QCPCCIGH_V_MPYJDZDO = ValueMetadata(
 NV_R_JLZNYQXH = RegisterMetadata(
     name='NV_R_JLZNYQXH',
     address=0x5400,
-    priv_level_mask=NV_R_IUTOYLMO
+    priv_level_mask=NV_R_IUTOYLMO,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_JLZNYQXH_F_SYXHRXSM = FieldMetadata(
@@ -40131,7 +40137,8 @@ NV_R_QHYDMXZK_F_ZXEGKTXV_ENABLE = ValueMetadata(
 NV_R_FIITOAYM = RegisterMetadata(
     name='NV_R_FIITOAYM',
     address=0x1418,
-    priv_level_mask=NV_R_VAYXMIYN
+    priv_level_mask=NV_R_VAYXMIYN,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_FIITOAYM_F_WYYZABJE = FieldMetadata(
@@ -40411,7 +40418,8 @@ NV_R_PKQJDZEU_F_ZXEGKTXV_ENABLE = ValueMetadata(
 NV_R_YFVSEIUU = RegisterMetadata(
     name='NV_R_YFVSEIUU',
     address=0x1420,
-    priv_level_mask=NV_R_EVABFQVT
+    priv_level_mask=NV_R_EVABFQVT,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_YFVSEIUU_F_WYYZABJE = FieldMetadata(
@@ -41111,7 +41119,8 @@ NV_R_SDLYCPBR_F_ZXEGKTXV_V_MPYJDZDO = ValueMetadata(
 NV_R_FDWAJTZK = RegisterMetadata(
     name='NV_R_FDWAJTZK',
     address=0x1400,
-    priv_level_mask=NV_R_EVABFQVT
+    priv_level_mask=NV_R_EVABFQVT,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_FDWAJTZK_F_WYYZABJE = FieldMetadata(
@@ -41767,7 +41776,8 @@ NV_R_FHPMWNAB_F_YIQQTYJN_V_GQHYEKHS = ValueMetadata(
 NV_R_VUSQCFIR = RegisterMetadata(
     name='NV_R_VUSQCFIR',
     address=0x3418,
-    priv_level_mask=NV_R_FUODQKPB
+    priv_level_mask=NV_R_FUODQKPB,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_VUSQCFIR_F_ETDCKGRZ = FieldMetadata(
@@ -42048,7 +42058,8 @@ NV_R_ICOASAIY_F_YIQQTYJN_ENABLE = ValueMetadata(
 NV_R_MMHGMQJX = RegisterMetadata(
     name='NV_R_MMHGMQJX',
     address=0x3420,
-    priv_level_mask=NV_R_WFNMTNPC
+    priv_level_mask=NV_R_WFNMTNPC,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_MMHGMQJX_F_ETDCKGRZ = FieldMetadata(
@@ -42576,7 +42587,8 @@ NV_R_SHEQBZRP_F_YIQQTYJN_V_MPYJDZDO = ValueMetadata(
 NV_R_YMTURDRV = RegisterMetadata(
     name='NV_R_YMTURDRV',
     address=0x3400,
-    priv_level_mask=NV_R_WFNMTNPC
+    priv_level_mask=NV_R_WFNMTNPC,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_YMTURDRV_F_ETDCKGRZ = FieldMetadata(
@@ -43628,7 +43640,8 @@ NV_R_YDTKDFCF_F_QCPCCIGH_V_GQHYEKHS = ValueMetadata(
 NV_R_CLOJBPBE = RegisterMetadata(
     name='NV_R_CLOJBPBE',
     address=0x4418,
-    priv_level_mask=NV_R_QZBWQEEQ
+    priv_level_mask=NV_R_QZBWQEEQ,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_CLOJBPBE_F_DNWNKPSU = FieldMetadata(
@@ -43904,7 +43917,8 @@ NV_R_DOHXHGIB_F_QCPCCIGH_ENABLE = ValueMetadata(
 NV_R_LMWFEEAW = RegisterMetadata(
     name='NV_R_LMWFEEAW',
     address=0x4420,
-    priv_level_mask=NV_R_BZXGJTRG
+    priv_level_mask=NV_R_BZXGJTRG,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_LMWFEEAW_F_DNWNKPSU = FieldMetadata(
@@ -44360,7 +44374,8 @@ NV_R_FQFIXGXS_F_QCPCCIGH_V_MPYJDZDO = ValueMetadata(
 NV_R_WHWKINZZ = RegisterMetadata(
     name='NV_R_WHWKINZZ',
     address=0x4400,
-    priv_level_mask=NV_R_BZXGJTRG
+    priv_level_mask=NV_R_BZXGJTRG,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
 )
 
 NV_R_WHWKINZZ_F_DNWNKPSU = FieldMetadata(

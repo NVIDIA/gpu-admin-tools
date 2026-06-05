@@ -1055,6 +1055,18 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         if "nvlink" in self.props:
             self.nvlink = self.props["nvlink"]
 
+    def init_autoload_units(self):
+        from gpu.unit import init_autoload_units
+        init_autoload_units(self)
+
+    def ensure_unit(self, unit_name):
+        from gpu.unit import ensure_unit
+        return ensure_unit(self, unit_name)
+
+    def ensure_units_with_capability(self, capability):
+        from gpu.unit import ensure_units_with_capability
+        return ensure_units_with_capability(self, capability)
+
     @property
     def has_pdi(self):
         return False
@@ -3164,8 +3176,7 @@ class NvSwitch(NvidiaDevice):
         if self.is_ppcie_query_supported:
             self.knob_defaults = {"ppcie": "off"}
 
-        for unit in self.device_units.values():
-            unit.create_instance(self)
+        self.init_autoload_units()
 
         self.common_init()
 
@@ -3510,8 +3521,7 @@ class Gpu(NvidiaDevice):
         self._save_cfg_space()
         self.init_priv_ring()
 
-        for unit in self.device_units.values():
-            unit.create_instance(self)
+        self.init_autoload_units()
 
         self.bar0_window_base = 0
         self.bar0_window_initialized = False

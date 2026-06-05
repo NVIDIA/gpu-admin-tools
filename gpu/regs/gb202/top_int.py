@@ -251,6 +251,402 @@ NV_PTOP_DEVICE_INFO_CFG_VERSION_INIT = ValueMetadata(
     field=NV_PTOP_DEVICE_INFO_CFG_VERSION
 )
 
+NV_R_CUYACIFH = RegisterMetadata(
+    name='NV_R_CUYACIFH',
+    address=0x22478
+)
+
+NV_R_CUYACIFH_VALUE = FieldMetadata(
+    name='NV_R_CUYACIFH_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_CUYACIFH
+)
+
+NV_R_CUYACIFH_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_CUYACIFH_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_CUYACIFH_VALUE
+)
+
+NV_R_SXKEOIBW = RegisterMetadata(
+    name='NV_R_SXKEOIBW',
+    address=0x22474
+)
+
+NV_R_SXKEOIBW_VALUE = FieldMetadata(
+    name='NV_R_SXKEOIBW_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_SXKEOIBW
+)
+
+NV_R_SXKEOIBW_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_SXKEOIBW_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_SXKEOIBW_VALUE
+)
+
+NV_R_AFPSKUZI = RegisterMetadata(
+    name='NV_R_AFPSKUZI',
+    address=0x2247c
+)
+
+NV_R_AFPSKUZI_VALUE = FieldMetadata(
+    name='NV_R_AFPSKUZI_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_AFPSKUZI
+)
+
+NV_R_AFPSKUZI_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_AFPSKUZI_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_AFPSKUZI_VALUE
+)
+
+NV_R_HMQJWADN = RegisterMetadata(
+    name='NV_R_HMQJWADN',
+    address=0x22444
+)
+
+NV_R_HMQJWADN_VALUE = FieldMetadata(
+    name='NV_R_HMQJWADN_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_HMQJWADN
+)
+
+NV_R_HMQJWADN_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_HMQJWADN_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_HMQJWADN_VALUE
+)
+
+NV_R_WTQAYGOT = RegisterMetadata(
+    name='NV_R_WTQAYGOT',
+    address=0x2243c
+)
+
+NV_R_WTQAYGOT_VALUE = FieldMetadata(
+    name='NV_R_WTQAYGOT_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_WTQAYGOT
+)
+
+NV_R_WTQAYGOT_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_WTQAYGOT_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_WTQAYGOT_VALUE
+)
+
+NV_R_MALHPZWJ = RegisterMetadata(
+    name='NV_R_MALHPZWJ',
+    address=0x22458
+)
+
+NV_R_MALHPZWJ_VALUE = FieldMetadata(
+    name='NV_R_MALHPZWJ_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_MALHPZWJ
+)
+
+NV_R_MALHPZWJ_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_MALHPZWJ_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_MALHPZWJ_VALUE
+)
+
+NV_R_JVHVALTL = RegisterMetadata(
+    name='NV_R_JVHVALTL',
+    address=0x22438
+)
+
+NV_R_JVHVALTL_VALUE = FieldMetadata(
+    name='NV_R_JVHVALTL_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_JVHVALTL
+)
+
+NV_R_JVHVALTL_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_JVHVALTL_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_JVHVALTL_VALUE
+)
+
+NV_R_GMOCCARV = RegisterMetadata(
+    name='NV_R_GMOCCARV',
+    address=0x22430
+)
+
+NV_R_GMOCCARV_VALUE = FieldMetadata(
+    name='NV_R_GMOCCARV_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_GMOCCARV
+)
+
+NV_R_GMOCCARV_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_GMOCCARV_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_GMOCCARV_VALUE
+)
+
+NV_R_RLGXXLDD = RegisterMetadata(
+    name='NV_R_RLGXXLDD',
+    address=0x22454
+)
+
+NV_R_RLGXXLDD_VALUE = FieldMetadata(
+    name='NV_R_RLGXXLDD_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_RLGXXLDD
+)
+
+NV_R_RLGXXLDD_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_RLGXXLDD_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_RLGXXLDD_VALUE
+)
+
+NV_R_MGENATIB = RegisterMetadata(
+    name='NV_R_MGENATIB',
+    address=0x22450
+)
+
+NV_R_MGENATIB_VALUE = FieldMetadata(
+    name='NV_R_MGENATIB_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_MGENATIB
+)
+
+NV_R_MGENATIB_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_MGENATIB_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_MGENATIB_VALUE
+)
+
+NV_R_FXMSYJMF = RegisterMetadata(
+    name='NV_R_FXMSYJMF',
+    address=0x22464
+)
+
+NV_R_FXMSYJMF_VALUE = FieldMetadata(
+    name='NV_R_FXMSYJMF_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_FXMSYJMF
+)
+
+NV_R_FXMSYJMF_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_FXMSYJMF_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_FXMSYJMF_VALUE
+)
+
+NV_R_QIDNGOVJ = RegisterMetadata(
+    name='NV_R_QIDNGOVJ',
+    address=0x2244c
+)
+
+NV_R_QIDNGOVJ_VALUE = FieldMetadata(
+    name='NV_R_QIDNGOVJ_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_QIDNGOVJ
+)
+
+NV_R_QIDNGOVJ_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_QIDNGOVJ_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_QIDNGOVJ_VALUE
+)
+
+NV_R_UKNWXHHW = RegisterMetadata(
+    name='NV_R_UKNWXHHW',
+    address=0x22468
+)
+
+NV_R_UKNWXHHW_VALUE = FieldMetadata(
+    name='NV_R_UKNWXHHW_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_UKNWXHHW
+)
+
+NV_R_UKNWXHHW_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_UKNWXHHW_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_UKNWXHHW_VALUE
+)
+
+NV_R_MUMMKQCM = RegisterMetadata(
+    name='NV_R_MUMMKQCM',
+    address=0x2246c
+)
+
+NV_R_MUMMKQCM_VALUE = FieldMetadata(
+    name='NV_R_MUMMKQCM_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_MUMMKQCM
+)
+
+NV_R_MUMMKQCM_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_MUMMKQCM_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_MUMMKQCM_VALUE
+)
+
+NV_R_ZNEWYGRA = RegisterMetadata(
+    name='NV_R_ZNEWYGRA',
+    address=0x22470
+)
+
+NV_R_ZNEWYGRA_VALUE = FieldMetadata(
+    name='NV_R_ZNEWYGRA_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_ZNEWYGRA
+)
+
+NV_R_ZNEWYGRA_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_ZNEWYGRA_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_ZNEWYGRA_VALUE
+)
+
+NV_R_KYKLMRFE = RegisterMetadata(
+    name='NV_R_KYKLMRFE',
+    address=0x22460
+)
+
+NV_R_KYKLMRFE_VALUE = FieldMetadata(
+    name='NV_R_KYKLMRFE_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_KYKLMRFE
+)
+
+NV_R_KYKLMRFE_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_KYKLMRFE_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_KYKLMRFE_VALUE
+)
+
+NV_R_TWHJUYMI = RegisterMetadata(
+    name='NV_R_TWHJUYMI',
+    address=0x22480
+)
+
+NV_R_TWHJUYMI_VALUE = FieldMetadata(
+    name='NV_R_TWHJUYMI_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_TWHJUYMI
+)
+
+NV_R_TWHJUYMI_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_TWHJUYMI_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_TWHJUYMI_VALUE
+)
+
+NV_R_KMZTDFMK = RegisterMetadata(
+    name='NV_R_KMZTDFMK',
+    address=0x2245c
+)
+
+NV_R_KMZTDFMK_VALUE = FieldMetadata(
+    name='NV_R_KMZTDFMK_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_KMZTDFMK
+)
+
+NV_R_KMZTDFMK_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_KMZTDFMK_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_KMZTDFMK_VALUE
+)
+
+NV_R_VNLAJASY = RegisterMetadata(
+    name='NV_R_VNLAJASY',
+    address=0x22488
+)
+
+NV_R_VNLAJASY_VALUE = FieldMetadata(
+    name='NV_R_VNLAJASY_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_VNLAJASY
+)
+
+NV_R_VNLAJASY_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_VNLAJASY_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_VNLAJASY_VALUE
+)
+
+NV_R_LMSCCKQD = RegisterMetadata(
+    name='NV_R_LMSCCKQD',
+    address=0x2248c
+)
+
+NV_R_LMSCCKQD_VALUE = FieldMetadata(
+    name='NV_R_LMSCCKQD_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_LMSCCKQD
+)
+
+NV_R_LMSCCKQD_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_LMSCCKQD_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_LMSCCKQD_VALUE
+)
+
+NV_R_UTWVFXBK = RegisterMetadata(
+    name='NV_R_UTWVFXBK',
+    address=0x22434
+)
+
+NV_R_UTWVFXBK_VALUE = FieldMetadata(
+    name='NV_R_UTWVFXBK_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_UTWVFXBK
+)
+
+NV_R_UTWVFXBK_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_UTWVFXBK_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_UTWVFXBK_VALUE
+)
+
+NV_R_HTYAWCIU = RegisterMetadata(
+    name='NV_R_HTYAWCIU',
+    address=0x22440
+)
+
+NV_R_HTYAWCIU_VALUE = FieldMetadata(
+    name='NV_R_HTYAWCIU_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_R_HTYAWCIU
+)
+
+NV_R_HTYAWCIU_VALUE_V_ZRRJKDVX = ValueMetadata(
+    name='NV_R_HTYAWCIU_VALUE_V_ZRRJKDVX',
+    value=0,
+    field=NV_R_HTYAWCIU_VALUE
+)
+
 # Array definitions
 NV_A_KOIOESYK = ArrayMetadata(
     name='NV_A_KOIOESYK',
@@ -949,8 +1345,8 @@ NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_DKSQOGZB = ValueMetadata(
     value=63,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
-NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_AUMDBSXC = ValueMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_AUMDBSXC',
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_FBHUB = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_FBHUB',
     value=27,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
@@ -1009,8 +1405,8 @@ NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HSHUBMMU = ValueMetadata(
     value=32,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )
-NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_WVIQLUWD = ValueMetadata(
-    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_V_WVIQLUWD',
+NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HUBMMU = ValueMetadata(
+    name='NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM_HUBMMU',
     value=53,
     field=NV_PTOP_DEVICE_INFO2_DEV_TYPE_ENUM
 )

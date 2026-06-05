@@ -30,6 +30,7 @@ import zipfile
 from dataclasses import dataclass
 from typing import Any
 from gpu.regs.core import ArrayMetadata, RegisterMetadata
+from gpu.unit import DEBUG_DUMP_CAPABILITY
 
 _FORMAT_VERSION = 1
 _DEVICES_DIR = "devices"
@@ -373,9 +374,31 @@ def _merge_debug_dump_metadata(*metadatas):
             if key == "dimensions" and isinstance(value, dict):
                 merged.setdefault("dimensions", {})
                 merged["dimensions"].update(value)
+            elif key == "tags":
+                merged["tags"] = _merge_debug_dump_tags(merged.get("tags"), value)
             else:
                 merged[key] = value
     return merged
+
+
+def _merge_debug_dump_tags(*tag_lists):
+    tags = []
+    seen = set()
+    for tag_list in tag_lists:
+        for tag in _debug_dump_tags(tag_list):
+            if tag in seen:
+                continue
+            tags.append(tag)
+            seen.add(tag)
+    return tags
+
+
+def _debug_dump_tags(tag_list):
+    if tag_list is None:
+        return []
+    if isinstance(tag_list, str):
+        return [tag_list]
+    return list(tag_list)
 
 
 def _record_variants(record_or_records):
@@ -401,7 +424,9 @@ def _merge_record_variants(existing, record):
 
 
 def _capture_gpu_units(gpu, device_capture, options):
-    for unit_name, unit in gpu.units.items():
+    gpu.ensure_units_with_capability(DEBUG_DUMP_CAPABILITY)
+
+    for unit_name, unit in list(gpu.units.items()):
         try:
             unit.debug_dump_capture(UnitDumpCapture(device_capture, unit_name, options), options)
         except Exception as err:  # pylint: disable=broad-except
@@ -487,11 +512,29 @@ def _sample_config(samples=None, interval_ms=None):
 def _set_interesting_from_rule(record, interesting_rule):
     if record is None or interesting_rule is None or "interesting" in record:
         return
-    if callable(interesting_rule):
-        interesting = interesting_rule(_record_sample_values(record))
-    else:
-        interesting = interesting_rule
+    interesting = _evaluate_interesting_rule(record, interesting_rule)
     _set_record_interesting(record, interesting)
+
+
+def _evaluate_interesting_rule(record, interesting_rule):
+    if callable(interesting_rule):
+        return interesting_rule(_record_sample_values(record))
+    if not isinstance(interesting_rule, dict) or "rule" not in interesting_rule:
+        return interesting_rule
+
+    rule = interesting_rule["rule"]
+    if rule == "nonzero":
+        if not _record_has_nonzero_value(record):
+            return None
+    elif rule == "nonzero_or_unreadable":
+        if not _record_has_nonzero_value(record) and not _record_has_unreadable_value(record):
+            return None
+    else:
+        raise ValueError(f"unknown interesting rule: {rule}")
+
+    interesting = dict(interesting_rule)
+    interesting.pop("rule", None)
+    return interesting
 
 
 def _captured_record_dict(record):
@@ -513,17 +556,58 @@ def _captured_register_value(register, record):
 
 def _record_sample_values(record):
     values = []
-    for sample in _record_samples(record):
-        if "value" not in sample:
-            continue
-        value = sample["value"]
-        if isinstance(value, str) and value.startswith("0x"):
-            try:
-                value = int(value, 16)
-            except ValueError:
-                pass
-        values.extend([value] * sample.get("count", 1))
+    for value, _status, count in _record_sample_value_entries(record):
+        values.extend([value] * count)
     return values
+
+
+def _record_has_nonzero_value(record):
+    for value, status, _count in _record_sample_value_entries(record):
+        if status == "unreadable":
+            continue
+        if _is_nonzero_sample_value(value):
+            return True
+    return False
+
+
+def _record_has_unreadable_value(record):
+    return any(status == "unreadable" for _value, status, _count in _record_sample_value_entries(record))
+
+
+def _record_sample_value_entries(record):
+    entries = []
+    for sample in _record_samples(record):
+        count = sample.get("count", 1)
+        if "value" in sample:
+            entries.append((
+                _normalize_sample_value(sample["value"]),
+                sample.get("status"),
+                count,
+            ))
+        for entry in sample.get("entries", []):
+            if "value" not in entry:
+                continue
+            entries.append((
+                _normalize_sample_value(entry["value"]),
+                entry.get("status"),
+                count,
+            ))
+    return entries
+
+
+def _normalize_sample_value(value):
+    if isinstance(value, str) and value.startswith("0x"):
+        try:
+            return int(value, 16)
+        except ValueError:
+            return value
+    return value
+
+
+def _is_nonzero_sample_value(value):
+    if isinstance(value, int):
+        return value != 0
+    return False
 
 
 def _capture_register(gpu, register, started_at, base=0, samples=None, interval_ms=None, instance=None, sample_aggregation=None):
@@ -716,12 +800,16 @@ def _set_record_debug_dump_metadata(record, metadata):
     if not metadata:
         return
     record_metadata = {}
-    for key in ("group", "dimensions", "order", "display_name"):
+    for key in ("dimensions", "order", "display_name", "path", "tags"):
         if key not in metadata:
             continue
         value = metadata[key]
         if key == "dimensions" and isinstance(value, dict):
             value = dict(value)
+        elif key == "tags":
+            value = _debug_dump_tags(value)
+            if not value:
+                continue
         record_metadata[key] = value
     if record_metadata:
         record["debug_dump"] = record_metadata

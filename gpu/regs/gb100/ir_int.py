@@ -513,7 +513,7 @@ NV_R_TTGMCXQP_VALID_V_ZRRJKDVX = ValueMetadata(
 NV_R_STSPSEPZ = RegisterMetadata(
     name='NV_R_STSPSEPZ',
     address=0x794,
-    debug_dump={'group': 'intr_status', 'dimensions': {'uc': 'nvrisc', 'core': 0}, 'samples': 1000}
+    debug_dump={'tags': ['intr_status'], 'path': 'nvlink.netir', 'samples': 1000}
 )
 
 NV_R_STSPSEPZ_F_AQFWRERE = FieldMetadata(
@@ -695,7 +695,7 @@ NV_R_KDYBKKQJ_WRITE_V_ZRRJKDVX = ValueMetadata(
 NV_R_ELPQHXVO = RegisterMetadata(
     name='NV_R_ELPQHXVO',
     address=0x7ec,
-    debug_dump={'group': 'pc', 'dimensions': {'uc': 'nvrisc', 'core': 0}, 'samples': 1000, 'aggregation': 'histogram'}
+    debug_dump={'tags': ['pc'], 'path': 'nvlink.netir', 'samples': 1000, 'aggregation': 'histogram'}
 )
 
 NV_R_ELPQHXVO_F_MYDNDUNC = FieldMetadata(
@@ -809,7 +809,7 @@ NV_R_QTXXHYWI_VALID_V_ZRRJKDVX = ValueMetadata(
 NV_R_FSWWCPCY = RegisterMetadata(
     name='NV_R_FSWWCPCY',
     address=0x2794,
-    debug_dump={'group': 'intr_status', 'dimensions': {'uc': 'nvrisc', 'core': 1}, 'samples': 1000}
+    debug_dump={'tags': ['intr_status'], 'path': 'nvlink.netir', 'samples': 1000}
 )
 
 NV_R_FSWWCPCY_F_AQFWRERE = FieldMetadata(
@@ -991,7 +991,7 @@ NV_R_BILYNUIP_WRITE_V_ZRRJKDVX = ValueMetadata(
 NV_R_UJFQYDOQ = RegisterMetadata(
     name='NV_R_UJFQYDOQ',
     address=0x27ec,
-    debug_dump={'group': 'pc', 'dimensions': {'uc': 'nvrisc', 'core': 1}, 'samples': 1000, 'aggregation': 'histogram'}
+    debug_dump={'tags': ['pc'], 'path': 'nvlink.netir', 'samples': 1000, 'aggregation': 'histogram'}
 )
 
 NV_R_UJFQYDOQ_F_MYDNDUNC = FieldMetadata(
@@ -1105,7 +1105,7 @@ NV_R_DJCICOEA_VALID_V_ZRRJKDVX = ValueMetadata(
 NV_R_ZOWCMTPS = RegisterMetadata(
     name='NV_R_ZOWCMTPS',
     address=0x4794,
-    debug_dump={'group': 'intr_status', 'dimensions': {'uc': 'nvrisc', 'core': 2}, 'samples': 1000}
+    debug_dump={'tags': ['intr_status'], 'path': 'nvlink.netir', 'samples': 1000}
 )
 
 NV_R_ZOWCMTPS_F_AQFWRERE = FieldMetadata(
@@ -1287,7 +1287,7 @@ NV_R_UPLZCDYK_WRITE_V_ZRRJKDVX = ValueMetadata(
 NV_R_MCDKKRBG = RegisterMetadata(
     name='NV_R_MCDKKRBG',
     address=0x47ec,
-    debug_dump={'group': 'pc', 'dimensions': {'uc': 'nvrisc', 'core': 2}, 'samples': 1000, 'aggregation': 'histogram'}
+    debug_dump={'tags': ['pc'], 'path': 'nvlink.netir', 'samples': 1000, 'aggregation': 'histogram'}
 )
 
 NV_R_MCDKKRBG_F_MYDNDUNC = FieldMetadata(
@@ -1401,7 +1401,7 @@ NV_R_VXGWAHOX_VALID_V_ZRRJKDVX = ValueMetadata(
 NV_R_IJJCEDMT = RegisterMetadata(
     name='NV_R_IJJCEDMT',
     address=0x6794,
-    debug_dump={'group': 'intr_status', 'dimensions': {'uc': 'nvrisc', 'core': 3}, 'samples': 1000}
+    debug_dump={'tags': ['intr_status'], 'path': 'nvlink.netir', 'samples': 1000}
 )
 
 NV_R_IJJCEDMT_F_AQFWRERE = FieldMetadata(
@@ -1583,7 +1583,7 @@ NV_R_BVEDRQNP_WRITE_V_ZRRJKDVX = ValueMetadata(
 NV_R_XOATKXOJ = RegisterMetadata(
     name='NV_R_XOATKXOJ',
     address=0x67ec,
-    debug_dump={'group': 'pc', 'dimensions': {'uc': 'nvrisc', 'core': 3}, 'samples': 1000, 'aggregation': 'histogram'}
+    debug_dump={'tags': ['pc'], 'path': 'nvlink.netir', 'samples': 1000, 'aggregation': 'histogram'}
 )
 
 NV_R_XOATKXOJ_F_MYDNDUNC = FieldMetadata(

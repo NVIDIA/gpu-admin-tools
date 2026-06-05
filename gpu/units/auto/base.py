@@ -21,7 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from gpu.unit import GpuUnitAutoBase
+from gpu.unit import DEBUG_DUMP_CAPABILITY, GpuUnitAutoBase
 
 
 class GpuTopAuto(GpuUnitAutoBase):
@@ -81,6 +81,169 @@ class GpuC2CAuto(GpuUnitAutoBase):
 
         from gpu.units.c2c import GpuC2C
         return GpuC2C(device)
+
+
+class HubmmuAuto(GpuUnitAutoBase):
+    name = "hubmmu"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_blackwell_plus:
+            return None
+        from gpu.units.hub import Hubmmu
+        return Hubmmu(device)
+
+
+class HshubmmuAuto(GpuUnitAutoBase):
+    name = "hshubmmu"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        if device.is_blackwell_plus:
+            from gpu.units.hub import HshubmmuBlackwell
+            return HshubmmuBlackwell(device)
+        if device.is_hopper:
+            from gpu.units.hub import Hshubmmu
+            return Hshubmmu(device)
+        return None
+
+
+class FbhubAuto(GpuUnitAutoBase):
+    name = "fbhub"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_blackwell_plus:
+            return None
+        from gpu.units.hub import Fbhub
+        return Fbhub(device)
+
+
+class XalAuto(GpuUnitAutoBase):
+    name = "xal"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.bus import Xal
+        return Xal(device)
+
+
+class XplAuto(GpuUnitAutoBase):
+    name = "xpl"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.bus import Xpl
+        return Xpl(device)
+
+
+class XtlAuto(GpuUnitAutoBase):
+    name = "xtl"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.bus import Xtl
+        return Xtl(device)
+
+
+class PxucAuto(GpuUnitAutoBase):
+    name = "pxuc"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu():
+            return None
+        if device.is_blackwell and not device.is_blackwell_2xx:
+            from gpu.units.bus import Pxuc
+            return Pxuc(device)
+        return None
+
+
+class HshubAuto(GpuUnitAutoBase):
+    name = "hshub"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.hub import Hshub
+        return Hshub(device)
+
+
+class FbpaAuto(GpuUnitAutoBase):
+    name = "fbpa"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.mem import Fbpa
+        return Fbpa(device)
+
+
+class LtcAuto(GpuUnitAutoBase):
+    name = "ltc"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_hopper_plus:
+            return None
+        from gpu.units.mem import Ltc
+        return Ltc(device)
+
+
+class LrccAuto(GpuUnitAutoBase):
+    name = "lrcc"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_blackwell_plus or getattr(device, "is_blackwell_2xx", False):
+            return None
+        from gpu.units.mem import Lrcc
+        return Lrcc(device)
+
+
+class SysltcAuto(GpuUnitAutoBase):
+    name = "sysltc"
+    autoload = False
+    capabilities = frozenset({DEBUG_DUMP_CAPABILITY})
+
+    @classmethod
+    def create_instance(cls, device):
+        if not device.is_gpu() or not device.is_blackwell_plus:
+            return None
+        from gpu.units.mem import Sysltc
+        return Sysltc(device)
 
 
 class MiscDebugAuto(GpuUnitAutoBase):

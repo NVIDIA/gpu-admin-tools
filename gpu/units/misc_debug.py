@@ -84,3 +84,15 @@ class MiscDebug(GpuUnit):
     def _capture_register_modules(self, capture):
         capture.module(self.device.regs.therm_int)
         capture.module(self.device.regs.pbus)
+        for module_name in (
+            "gsp_int",
+            "fsp_int",
+            "pwr_int",
+            "sec_int",
+            "ce_int",
+            "pfb_mmu_int",
+        ):
+            register_module = getattr(self.device.regs, module_name, None)
+            if register_module is None:
+                continue
+            capture.module(register_module)

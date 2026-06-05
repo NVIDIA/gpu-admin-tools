@@ -1272,7 +1272,7 @@ NV_R_SKKDSWOZ_VALID_TRUE = ValueMetadata(
 NV_R_PUDUKBYF = RegisterMetadata(
     name='NV_R_PUDUKBYF',
     address=0x794,
-    debug_dump={'group': 'intr_status', 'dimensions': {'uc': 'mse'}, 'samples': 1000}
+    debug_dump={'tags': ['intr_status'], 'path': 'nvlink.mse', 'samples': 1000}
 )
 
 NV_R_PUDUKBYF_F_AQFWRERE = FieldMetadata(
@@ -1503,7 +1503,7 @@ NV_R_NPZOGJRZ_WRITE_TRUE = ValueMetadata(
 NV_R_YJYGJQJX = RegisterMetadata(
     name='NV_R_YJYGJQJX',
     address=0x7ec,
-    debug_dump={'group': 'pc', 'dimensions': {'uc': 'mse'}, 'samples': 1000, 'aggregation': 'histogram'}
+    debug_dump={'tags': ['pc'], 'path': 'nvlink.mse', 'samples': 1000, 'aggregation': 'histogram'}
 )
 
 NV_R_YJYGJQJX_F_MYDNDUNC = FieldMetadata(
