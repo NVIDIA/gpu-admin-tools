@@ -140,6 +140,11 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       "The GPU or switch needs to be reset to make the selected mode active. See --reset-after-ppcie-mode-switch for one way of doing it.")
     argp.add_argument("--test-ppcie-mode-switch", action='store_true', default=False,
                     help="Test switching PPCIE mode.")
+    argp.add_argument("--query-vgpu-mode", action='store_true', default=False,
+                      help="Query the current vGPU mode of the GPU. Supported on Hopper+ GPUs with Nova Core.")
+    argp.add_argument("--set-vgpu-mode", choices=["off", "on"],
+                      help="Configure vGPU mode on GPUs with Nova Core. The choices are off (disabled) or on (enabled). "
+                      "A reboot is required to activate the new mode.")
     argp.add_argument("--set-bar0-firewall-mode", choices=["off", "on"],
                     help="Configure BAR0 firewall mode. The choices are off (disabled) or on (enabled).")
     argp.add_argument("--query-bar0-firewall-mode", action='store_true', default=False,

@@ -225,6 +225,29 @@ def main_per_gpu(gpu, opts):
         cc_mode = gpu.query_cc_mode()
         info(f"{gpu} CC mode is {cc_mode}")
 
+    if opts.set_vgpu_mode:
+        if not gpu.is_gpu() or not gpu.is_hopper_plus:
+            error(f"Configuring vGPU mode is not supported on {gpu}")
+            return False
+
+        try:
+            gpu.set_vgpu_mode(opts.set_vgpu_mode)
+        except GpuError as err:
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            raise
+
+        info(f"{gpu} vGPU mode set to {opts.set_vgpu_mode}. A reboot is required to activate the new mode.")
+
+    if opts.query_vgpu_mode:
+        if not gpu.is_gpu() or not gpu.is_hopper_plus:
+            error(f"Querying vGPU mode is not supported on {gpu}")
+            return False
+
+        vgpu_mode = gpu.query_vgpu_mode()
+        info(f"{gpu} vGPU mode is {vgpu_mode}")
+
     if opts.query_bar0_firewall_mode:
         if not gpu.is_bar0_firewall_supported:
             error(f"Querying BAR0 firewall mode is not supported on {gpu}")

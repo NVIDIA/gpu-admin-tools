@@ -99,7 +99,7 @@ class PrcKnob(Enum):
 
     PRC_KNOB_ID_40                                      = 40
 
-    PRC_KNOB_ID_41                                      = 41
+    PRC_KNOB_ID_VGPU                                    = 41
 
     PRC_KNOB_ID_42                                      = 42
 

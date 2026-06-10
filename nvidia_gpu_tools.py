@@ -3935,6 +3935,37 @@ class Gpu(NvidiaDevice):
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCD.value, cc_dev_mode)
             self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_CCM.value, cc_mode)
 
+    def query_vgpu_mode(self):
+        assert self.is_hopper_plus
+
+        self._init_fsp_rpc()
+
+        try:
+            knob_value = self.fsp_rpc.prc_knob_read(PrcKnob.PRC_KNOB_ID_VGPU.value)
+        except FspRpcError as err:
+            if err.is_invalid_knob_error:
+                return "unsupported"
+            raise
+
+        if knob_value == 0x1:
+            return "on"
+        else:
+            return "off"
+
+    def set_vgpu_mode(self, mode):
+        assert self.is_hopper_plus
+
+        if mode == "on":
+            vgpu_value = 0x1
+        elif mode == "off":
+            vgpu_value = 0x0
+        else:
+            raise ValueError(f"Invalid vGPU mode {mode}")
+
+        self._init_fsp_rpc()
+
+        self.fsp_rpc.prc_knob_check_and_write(PrcKnob.PRC_KNOB_ID_VGPU.value, vgpu_value)
+
     def query_bar0_firewall_mode(self):
         assert self.is_bar0_firewall_supported
 
