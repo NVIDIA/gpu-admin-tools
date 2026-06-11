@@ -113,6 +113,8 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       help="Query the ECC state of the GPU")
     argp.add_argument("--query-cc-mode", action='store_true', default=False,
                       help="Query the current Confidential Computing (CC) mode of the GPU.")
+    argp.add_argument("--output-json-file",
+                      help="Path to write JSON output to for relevant query commands (e.g., --query-cc-mode).")
     argp.add_argument("--query-cc-settings", action='store_true', default=False,
                       help="Query the Confidential Computing (CC) settings of the GPU."
                       "This prints the lower level setting knobs that will take effect upon GPU reset.")
