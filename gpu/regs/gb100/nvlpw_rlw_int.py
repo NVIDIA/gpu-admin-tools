@@ -38595,7 +38595,8 @@ NV_R_BPPCDZEK_F_XFTGHEPH_V_BIMWZHUI = ValueMetadata(
 NV_R_HNCUODGB = RegisterMetadata(
     name='NV_R_HNCUODGB',
     address=0x2090,
-    priv_level_mask=NV_R_HNWAMEIZ
+    priv_level_mask=NV_R_HNWAMEIZ,
+    debug_dump={'exclude': True}
 )
 
 NV_R_HNCUODGB_F_JNXZBUNQ = FieldMetadata(
@@ -38627,7 +38628,8 @@ NV_R_HNCUODGB_F_CISRXXQA_V_GQHYEKHS = ValueMetadata(
 NV_R_UQDDMMXA = RegisterMetadata(
     name='NV_R_UQDDMMXA',
     address=0x2094,
-    priv_level_mask=NV_R_HNWAMEIZ
+    priv_level_mask=NV_R_HNWAMEIZ,
+    debug_dump={'exclude': True}
 )
 
 NV_R_UQDDMMXA_F_KFSVAQVQ = FieldMetadata(
@@ -39833,7 +39835,8 @@ NV_R_WBWWTZOX_F_JAXMWFIY_ENABLE = ValueMetadata(
 NV_R_YYRRITJD = RegisterMetadata(
     name='NV_R_YYRRITJD',
     address=0x5090,
-    priv_level_mask=NV_R_YQDSPMIF
+    priv_level_mask=NV_R_YQDSPMIF,
+    debug_dump={'exclude': True}
 )
 
 NV_R_YYRRITJD_F_AKRARRWC = FieldMetadata(
@@ -42949,7 +42952,8 @@ NV_R_MGAUAYJB_F_YBKMWYSB_V_XMVVLIYL = ValueMetadata(
 NV_R_IHWGERAR = RegisterMetadata(
     name='NV_R_IHWGERAR',
     address=0x3090,
-    priv_level_mask=NV_R_AWKHYBVI
+    priv_level_mask=NV_R_AWKHYBVI,
+    debug_dump={'exclude': True}
 )
 
 NV_R_IHWGERAR_F_UIBDWLAV = FieldMetadata(
@@ -43282,7 +43286,8 @@ NV_R_PGXREETO_F_JAXMWFIY_ENABLE = ValueMetadata(
 NV_R_PJONNQZP = RegisterMetadata(
     name='NV_R_PJONNQZP',
     address=0x408c,
-    priv_level_mask=NV_R_OWUQMVMK
+    priv_level_mask=NV_R_OWUQMVMK,
+    debug_dump={'exclude': True}
 )
 
 NV_R_PJONNQZP_F_ZZLWNPXF = FieldMetadata(
@@ -43314,7 +43319,8 @@ NV_R_PJONNQZP_F_AKRARRWC_V_GQHYEKHS = ValueMetadata(
 NV_R_QZJDKLFK = RegisterMetadata(
     name='NV_R_QZJDKLFK',
     address=0x4090,
-    priv_level_mask=NV_R_OWUQMVMK
+    priv_level_mask=NV_R_OWUQMVMK,
+    debug_dump={'exclude': True}
 )
 
 NV_R_QZJDKLFK_F_JPPOPEGU = FieldMetadata(
@@ -43398,7 +43404,8 @@ NV_R_QZJDKLFK_VALID_V_GQHYEKHS = ValueMetadata(
 NV_R_BOBWHURB = RegisterMetadata(
     name='NV_R_BOBWHURB',
     address=0x4094,
-    priv_level_mask=NV_R_OWUQMVMK
+    priv_level_mask=NV_R_OWUQMVMK,
+    debug_dump={'exclude': True}
 )
 
 NV_R_BOBWHURB_F_NQNNINTB = FieldMetadata(
@@ -44845,7 +44852,8 @@ NV_R_FFHWHPGX_F_JAXMWFIY_ENABLE = ValueMetadata(
 NV_R_GWZIISYO = RegisterMetadata(
     name='NV_R_GWZIISYO',
     address=0x4084,
-    priv_level_mask=NV_R_OWUQMVMK
+    priv_level_mask=NV_R_OWUQMVMK,
+    debug_dump={'exclude': True}
 )
 
 NV_R_GWZIISYO_F_OWTZHYZT = FieldMetadata(

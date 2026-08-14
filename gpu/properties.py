@@ -31,13 +31,31 @@ class GpuProperties:
         self.devid = devid
         self.ssid = ssid
 
-    def get_properties(self):
-        name = GPU_NAME_BY_DEVID.get(self.devid, None)
-        props = GPU_PROPS_BY_DEVID.get((self.devid, self.ssid), [])
+    def _get_properties(self, devid):
+        name = GPU_NAME_BY_DEVID.get(devid, None)
+        props = GPU_PROPS_BY_DEVID.get((devid, self.ssid), [])
         return {
             "name": name,
             "flags": props,
         }
+
+    def get_properties(self):
+        return self._get_properties(self.devid)
+
+    def get_properties_by_chip_and_ssid(self):
+        """Get properties for this SSID from the reported device's chip range."""
+        if (self.devid, self.ssid) in GPU_PROPS_BY_DEVID:
+            return self.get_properties()
+
+        for devid_low, devid_high, _arch, _chip in GPU_DEVID_CHIPS:
+            if devid_low <= self.devid <= devid_high:
+                for property_devid, property_ssid in GPU_PROPS_BY_DEVID:
+                    if (devid_low <= property_devid <= devid_high and
+                        property_ssid == self.ssid):
+                        return self._get_properties(property_devid)
+                break
+
+        return self.get_properties()
 
     @staticmethod
     def get_chip_family(devid):

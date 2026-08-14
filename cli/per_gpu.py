@@ -225,6 +225,39 @@ def main_per_gpu(gpu, opts):
         cc_mode = gpu.query_cc_mode()
         info(f"{gpu} CC mode is {cc_mode}")
 
+    if opts.set_bmsai_mode:
+        if not gpu.is_gpu() or not gpu.is_bmsai_query_supported:
+            error(f"Configuring BMSAI not supported on {gpu}")
+            return False
+
+        try:
+            gpu.set_cc_mode(opts.set_bmsai_mode)
+        except GpuError as err:
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
+            gpu.debug_dump()
+            prc_knobs = gpu.query_prc_knobs()
+            debug(f"{gpu} PRC knobs:")
+            for name, value in prc_knobs:
+                debug(f"  {name} = {value}")
+            raise
+
+        info(f"{gpu} BMSAI mode set to {opts.set_bmsai_mode}. It will be active after GPU reset.")
+        if opts.reset_after_cc_mode_switch:
+            gpu.reset_with_os()
+            new_mode = gpu.query_cc_mode()
+            if new_mode != opts.set_bmsai_mode:
+                raise GpuError(f"{gpu} failed to switch to BMSAI mode {opts.set_bmsai_mode}, current mode is {new_mode}.")
+            info(f"{gpu} was reset to apply the new BMSAI mode.")
+
+    if opts.query_bmsai_mode:
+        if not gpu.is_gpu() or not gpu.is_bmsai_query_supported:
+            error(f"Querying BMSAI mode is not supported on {gpu}")
+            return False
+
+        bmsai_mode = gpu.query_cc_mode()
+        info(f"{gpu} BMSAI mode is {bmsai_mode}")
+
     if opts.query_bar0_firewall_mode:
         if not gpu.is_bar0_firewall_supported:
             error(f"Querying BAR0 firewall mode is not supported on {gpu}")

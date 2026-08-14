@@ -39,7 +39,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2026.06.05o"
+VERSION = "v2026.08.14o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -113,6 +113,8 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       help="Query the ECC state of the GPU")
     argp.add_argument("--query-cc-mode", action='store_true', default=False,
                       help="Query the current Confidential Computing (CC) mode of the GPU.")
+    argp.add_argument("--query-bmsai-mode", action='store_true', default=False,
+                      help="Query the current Bare Metal Secure AI (BMSAI) mode of the GPU.")
     argp.add_argument("--query-cc-settings", action='store_true', default=False,
                       help="Query the Confidential Computing (CC) settings of the GPU."
                       "This prints the lower level setting knobs that will take effect upon GPU reset.")
@@ -128,9 +130,12 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       "Both INDEX and VALUE accept decimal or hexadecimal (0x-prefixed) integers.")
     argp.add_argument("--set-cc-mode", choices=["off", "on", "devtools"],
                       help="Configure Confidentail Computing (CC) mode. The choices are off (disabled), on (enabled) or devtools (enabled in DevTools mode)."
-                      "The GPU needs to be reset to make the selected mode active. See --reset-after-cc-mode-switch for one way of doing it.")
-    argp.add_argument("--reset-after-cc-mode-switch", action='store_true', default=False,
-                    help="Reset the GPU after switching CC mode such that it is activated immediately.")
+                      "The GPU needs to be reset to make the selected mode active. See --reset-after-mode-switch for one way of doing it.")
+    argp.add_argument("--set-bmsai-mode", choices=["off", "on", "devtools"],
+                      help="Configure Bare Metal Secure AI (BMSAI) mode. The choices are off (disabled), on (enabled) or devtools (enabled in DevTools mode)."
+                      "The GPU needs to be reset to make the selected mode active. See --reset-after-mode-switch for one way of doing it.")
+    argp.add_argument("--reset-after-cc-mode-switch", "--reset-after-mode-switch", action='store_true', default=False,
+                    help="Reset the GPU after switching CC or BMSAI mode such that it is activated immediately.")
     argp.add_argument("--test-cc-mode-switch", action='store_true', default=False,
                     help="Test switching CC modes.")
     argp.add_argument("--reset-after-ppcie-mode-switch", action='store_true', default=False,

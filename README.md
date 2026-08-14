@@ -1,15 +1,15 @@
 # NVIDIA GPU Admin Tools
 
-This utility is used for various configuration including the Confidential Computing modes of supported GPUs as well as some debug/test tasks. It is designed to be run as a privileged python3 command.
+This utility is used for various configuration including the Confidential Computing (CC) and Bare Metal Secure AI (BMSAI) modes of supported GPUs as well as some debug/test tasks. It is designed to be run as a privileged python3 command.
 
-Supported CC modes are:
+Supported CC and BMSAI modes are:
 
 - on
   - All supported GPU security features are enabled (e.g., bus encryption, performance counters off)
 - devtools
   - All supported GPU security features are enabled, however blocks preventing DevTools profiling/debugging are lifted
 - off
-  - The GPU operates in its default mode; no supplementary confidential computing features are enabled
+  - The GPU operates in its default mode; no supplementary security features are enabled
 
 ## Most Commonly Used Examples
 ##### Query the CC mode of all GPUs the system
@@ -20,6 +20,12 @@ Supported CC modes are:
 ` sudo python3 ./nvidia_gpu_tools.py --devices gpus --set-cc-mode=on --reset-after-cc-mode-switch `
 ##### Disable CC mode on a specific GPU in the system
 ` sudo python3 ./nvidia_gpu_tools.py --devices 45:00.0 --set-cc-mode=off --reset-after-cc-mode-switch`
+##### Query the BMSAI mode of all GPUs the system
+` sudo python3 ./nvidia_gpu_tools.py --devices gpus --query-bmsai-mode`
+##### Enable BMSAI mode on all GPUs
+` sudo python3 ./nvidia_gpu_tools.py --devices gpus --set-bmsai-mode=on --reset-after-mode-switch `
+##### Disable BMSAI mode on a specific GPU in the system
+` sudo python3 ./nvidia_gpu_tools.py --devices 45:00.0 --set-bmsai-mode=off --reset-after-mode-switch`
 
 
 ##### Generic debug dump from GPU
@@ -44,9 +50,11 @@ usage: nvidia_gpu_tools.py [-h] [--devices DEVICES] [--gpu GPU]
                            [--reset-with-os] [--remove-from-os]
                            [--sysfs-bind SYSFS_BIND] [--sysfs-unbind]
                            [--query-ecc-state] [--query-cc-mode]
-                           [--query-cc-settings] [--query-ppcie-mode]
-                           [--query-ppcie-settings] [--query-prc-knobs]
+                           [--query-bmsai-mode] [--query-cc-settings]
+                           [--query-ppcie-mode] [--query-ppcie-settings]
+                           [--query-prc-knobs]
                            [--set-cc-mode {off,on,devtools}]
+                           [--set-bmsai-mode {off,on,devtools}]
                            [--reset-after-cc-mode-switch]
                            [--test-cc-mode-switch]
                            [--reset-after-ppcie-mode-switch]
@@ -124,6 +132,8 @@ options:
   --query-ecc-state     Query the ECC state of the GPU
   --query-cc-mode       Query the current Confidential Computing (CC) mode of
                         the GPU.
+  --query-bmsai-mode    Query the current Bare Metal Secure AI (BMSAI) mode of
+                        the GPU.
   --query-cc-settings   Query the Confidential Computing (CC) settings of the
                         GPU.This prints the lower level setting knobs that
                         will take effect upon GPU reset.
@@ -139,10 +149,16 @@ options:
                         choices are off (disabled), on (enabled) or devtools
                         (enabled in DevTools mode).The GPU needs to be reset
                         to make the selected mode active. See --reset-after-
-                        cc-mode-switch for one way of doing it.
-  --reset-after-cc-mode-switch
-                        Reset the GPU after switching CC mode such that it is
-                        activated immediately.
+                        mode-switch for one way of doing it.
+  --set-bmsai-mode {off,on,devtools}
+                        Configure Bare Metal Secure AI (BMSAI) mode. The
+                        choices are off (disabled), on (enabled) or devtools
+                        (enabled in DevTools mode).The GPU needs to be reset
+                        to make the selected mode active. See --reset-after-
+                        mode-switch for one way of doing it.
+  --reset-after-cc-mode-switch, --reset-after-mode-switch
+                        Reset the GPU after switching CC or BMSAI mode such
+                        that it is activated immediately.
   --test-cc-mode-switch
                         Test switching CC modes.
   --reset-after-ppcie-mode-switch

@@ -49,6 +49,7 @@ class NvlinkAuto(GpuUnitAutoBase):
                 return LagunaNvlink(device)
             return None
 
+
         if device.is_blackwell_plus:
             from gpu.units.nvlink_blackwell import BlackwellNvlink
             return BlackwellNvlink(device)

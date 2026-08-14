@@ -3498,11 +3498,13 @@ class Gpu(NvidiaDevice):
         self.is_bar0_firewall_supported = self.is_blackwell_plus
         self.is_setting_ecc_after_reset_supported = self.is_ampere_plus
         self.is_mig_mode_supported = self.is_ampere_100
+        self._is_bmsai_query_supported = None
         if not self.sanity_check():
             debug("%s sanity check failed", self)
             raise BrokenGpuError()
 
-        gpu_extra_props = GpuProperties(self.pmcBoot0, self.device, self.ssid).get_properties()
+        gpu_properties = GpuProperties(self.pmcBoot0, self.device, self.ssid)
+        gpu_extra_props = gpu_properties.get_properties()
         if gpu_extra_props['name'] != None:
             self.name = gpu_extra_props['name']
 
@@ -3870,6 +3872,19 @@ class Gpu(NvidiaDevice):
         else:
             return "invalid-devtools-only-fix-by-setting-cc-mode"
 
+    @property
+    def is_bmsai_query_supported(self):
+        if self._is_bmsai_query_supported is None:
+            if not (self.is_blackwell_1xx and self.has_c2c):
+                self._is_bmsai_query_supported = False
+            else:
+                try:
+                    self.wait_for_boot(silent_on_failure=True)
+                except GpuPollTimeout:
+                    warning(f"{self} has not booted successfully within a timeout, but BMSAI state might still be readable. Continuing")
+                self._is_bmsai_query_supported = (self.read(0x590) & (1 << 8)) != 0
+        return self._is_bmsai_query_supported
+
     def query_cc_mode(self):
         assert self.is_cc_query_supported
 
@@ -3882,7 +3897,7 @@ class Gpu(NvidiaDevice):
     def set_cc_mode(self, mode):
         assert self.is_cc_query_supported
 
-        if not self.is_cc_enable_supported and mode != "off":
+        if not self.is_cc_enable_supported and not self.is_bmsai_query_supported and mode != "off":
             raise GpuError(f"{self} enabling CC is not supported. Only disabling CC is allowed.")
 
         cc_mode = 0x0

@@ -83,7 +83,8 @@ def main_per_gpu_or_nvswitch(device, opts):
                 if device.is_boot_done():
                     cc_mode = device.query_cc_mode()
                     if cc_mode != "off":
-                        warning(f"{device} has CC mode {cc_mode}, some functionality may not work")
+                        mode_name = "BMSAI" if device.is_bmsai_query_supported else "CC"
+                        warning(f"{device} has {mode_name} mode {cc_mode}, some functionality may not work")
             if device.is_ppcie_query_supported:
                 if device.is_boot_done():
                     ppcie_mode = device.query_ppcie_mode()
