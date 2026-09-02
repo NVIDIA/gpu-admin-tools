@@ -27,6 +27,48 @@ Supported CC and BMSAI modes are:
 ##### Disable BMSAI mode on a specific GPU in the system
 ` sudo python3 ./nvidia_gpu_tools.py --devices 45:00.0 --set-bmsai-mode=off --reset-after-mode-switch`
 
+## Prepare a GPU for VFIO passthrough
+
+VFIO uses the IOMMU group as its ownership boundary. Inspect the selected GPU
+before changing drivers:
+
+```bash
+sudo python3 nvidia_gpu_tools.py \
+  --gpu-bdf 0000:1b:00.0 \
+  --query-vfio-state
+```
+
+Bind a GPU whose IOMMU group has no other host-bound endpoints:
+
+```bash
+sudo python3 nvidia_gpu_tools.py \
+  --gpu-bdf 0000:1b:00.0 \
+  --bind-vfio
+```
+
+Additional endpoints are never detached implicitly. Authorize every endpoint
+that must leave its host driver by repeating `--allow-group-member`:
+
+```bash
+sudo python3 nvidia_gpu_tools.py \
+  --gpu-bdf 0000:1b:00.0 \
+  --bind-vfio \
+  --allow-group-member 0000:18:00.0
+```
+
+The bind operation records each changed device's original driver and driver
+override under `/run/nvidia-gpu-tools/`. Restore that state after the VM stops:
+
+```bash
+sudo python3 nvidia_gpu_tools.py \
+  --gpu-bdf 0000:1b:00.0 \
+  --restore-vfio-drivers
+```
+
+Use `--dry-run` with bind or restore to validate the operation without changing
+drivers. Binding network, storage, or management-class endpoints can disrupt
+host services; review the complete group inventory before authorizing peers.
+
 
 ##### Generic debug dump from GPU
 ` sudo python3 ./nvidia_gpu_tools.py --gpu-bdf=45:00.0 --debug-dump --log debug`

@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -109,6 +109,20 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
                       help="Remove from OS through /sys/.../remove")
     argp.add_argument("--sysfs-bind", help="Bind devices to the specified driver")
     argp.add_argument("--sysfs-unbind", action='store_true', help="Unbind devices from the current driver")
+    if platform_config.is_sysfs_available:
+        vfio_actions = argp.add_mutually_exclusive_group()
+        vfio_actions.add_argument("--query-vfio-state", action='store_true',
+                                  help="Inspect the selected GPU's IOMMU group and VFIO readiness")
+        vfio_actions.add_argument("--bind-vfio", action='store_true',
+                                  help="Bind the selected GPU and explicitly allowed IOMMU peers to vfio-pci")
+        vfio_actions.add_argument("--restore-vfio-drivers", action='store_true',
+                                  help="Restore drivers recorded by --bind-vfio")
+        argp.add_argument("--allow-group-member", action='append', default=[], metavar="BDF",
+                          help="Authorize an additional IOMMU-group endpoint for --bind-vfio; repeat as needed")
+        argp.add_argument("--vfio-state-file",
+                          help="Override the transient file used to record original host drivers")
+        argp.add_argument("--dry-run", action='store_true',
+                          help="Validate and display a VFIO bind or restore without changing the host")
     argp.add_argument("--query-ecc-state", action='store_true', default=False,
                       help="Query the ECC state of the GPU")
     argp.add_argument("--query-cc-mode", action='store_true', default=False,
@@ -269,6 +283,16 @@ def main():
     logging.basicConfig(level=getattr(logging, opts.log.upper()),
                         format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d,%H:%M:%S')
+
+    if platform_config.is_sysfs_available:
+        from pci.vfio import VfioError, execute_vfio_action, vfio_options_requested
+        if vfio_options_requested(opts):
+            try:
+                execute_vfio_action(opts)
+            except VfioError as err:
+                error("%s", err)
+                sys.exit(1)
+            return
 
     plugin = None
     if opts.command is not None:
