@@ -313,8 +313,13 @@ class PciDevice(Device):
 
         if self.mmio_access_type == "sysfs":
             return FileMap(os.path.join(self.dev_path, f"resource{self._bar_num_to_sysfs_resource(bar_num)}"), 0, bar_size)
-        else:
+        elif self.mmio_access_type == "devmem":
             return FileMap("/dev/mem", bar_addr, bar_size)
+        elif self.mmio_access_type == "mods":
+            from utils.mods import ModsBar
+            return ModsBar(self.bdf, bar_num, bar_size)
+        else:
+            raise ValueError(f"Invalid MMIO access type {self.mmio_access_type}")
 
     def _init_caps(self):
         import collections

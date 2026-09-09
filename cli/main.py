@@ -25,6 +25,7 @@ import sys
 import time
 import logging
 import argparse
+import os
 
 from logging import info, error, warning, debug
 
@@ -39,7 +40,7 @@ from gpu import GpuError, FspRpcError
 
 from pci.devices import find_gpus
 
-VERSION = "v2026.08.14o"
+VERSION = "v2026.09.08o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -90,8 +91,8 @@ def create_args():
     argp.add_argument("--no-gpu", action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
     argp.add_argument("--log", choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
     if platform_config.is_linux:
-        argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs'], default='sysfs',
-                          help="On Linux, specify whether to do MMIO through /dev/mem or /sys/bus/pci/devices/.../resourceN")
+        argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs', 'mods'], default='sysfs',
+                          help="On Linux, specify whether to do MMIO through /dev/mem, /sys/bus/pci/devices/.../resourceN, or /dev/mods")
 
     argp.add_argument("--recover-broken-gpu", action='store_true', default=False,
                       help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
@@ -279,6 +280,9 @@ def main():
 
     if platform_config.is_linux:
         PciDevice.mmio_access_type = opts.mmio_access_type
+        if opts.mmio_access_type == "mods" and not os.path.exists("/dev/mods"):
+            error("/dev/mods is missing, is mods.ko not loaded?")
+            sys.exit(1)
 
     if not opts.no_gpu:
         check_device_module_deps()
