@@ -85,6 +85,7 @@ GPU_NAME_BY_DEVID = {
     0x27b8: 'L4',
     0x2901: 'B200',
     0x2909: 'B200',
+    0x290a: 'B200',
     0x2941: 'GB200',
     0x2bb1: 'RTX-PRO-6000',
     0x2bb4: 'RTX-PRO-6000',

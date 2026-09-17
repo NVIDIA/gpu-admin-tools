@@ -43,7 +43,7 @@ from gpu import GpuError, FspRpcError
 from pci.devices import discover_devices, initialize_devices
 from pci.discovery import select_devices
 
-VERSION = "v2026.09.16o"
+VERSION = "v2026.09.17o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
