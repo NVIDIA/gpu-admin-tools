@@ -91,6 +91,7 @@ class Device:
 
 class PciDevice(Device):
     mmio_access_type = "sysfs"
+    vfio_force_bind = False
 
     @staticmethod
     def _open_config(dev_path):
@@ -98,6 +99,15 @@ class PciDevice(Device):
         return FileRaw(dev_path_config, 0, os.path.getsize(dev_path_config))
 
     def _map_cfg_space(self):
+        if self.mmio_access_type == "vfio" and self.sysfs_get_driver() == "vfio-pci":
+            from utils.vfio import VfioConfig
+            return VfioConfig(self.bdf)
+        if self.mmio_access_type == "mods":
+            from utils.mods import ModsConfig
+            # Use sysfs metadata to distinguish 256-byte and 4 KiB config
+            # spaces, but perform all register accesses through MODS.
+            size = os.path.getsize(os.path.join(self.dev_path, "config"))
+            return ModsConfig(self.bdf, size)
         return self._open_config(self.dev_path)
 
     def __init__(self, dev_path):
@@ -230,6 +240,8 @@ class PciDevice(Device):
         return None
 
     def _bar_num_to_sysfs_resource(self, barnum):
+        if hasattr(self, "bar_resources"):
+            return self.bar_resources[barnum]
         sysfs_num = barnum
         # sysfs has gaps in case of 64-bit BARs
         for b in range(barnum):
@@ -239,10 +251,11 @@ class PciDevice(Device):
 
     def _init_bars_sysfs(self):
         self.bars = []
+        self.bar_resources = []
         resources = open(os.path.join(self.dev_path, "resource")).readlines()
 
         # Consider only first 6 resources
-        for bar_line in resources[:6]:
+        for resource_num, bar_line in enumerate(resources[:6]):
             bar_line = bar_line.split(" ")
             addr = int(bar_line[0], base=16)
             end = int(bar_line[1], base=16)
@@ -256,6 +269,7 @@ class PciDevice(Device):
                 if (flags >> 1) & 0x3 == 0x2:
                     is_64bit = True
                 self.bars.append((addr, size, is_64bit))
+                self.bar_resources.append(resource_num)
 
     def _bar_reg_mask(self, offset, high):
         all_1 = 0xffffffff
@@ -318,6 +332,10 @@ class PciDevice(Device):
         elif self.mmio_access_type == "mods":
             from utils.mods import ModsBar
             return ModsBar(self.bdf, bar_num, bar_size)
+        elif self.mmio_access_type == "vfio":
+            from utils.vfio import VfioBar, bind_vfio_pci
+            bind_vfio_pci(self.bdf, force=self.vfio_force_bind)
+            return VfioBar(self.bdf, self._bar_num_to_sysfs_resource(bar_num), bar_size)
         else:
             raise ValueError(f"Invalid MMIO access type {self.mmio_access_type}")
 

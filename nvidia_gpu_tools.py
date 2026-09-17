@@ -1005,6 +1005,12 @@ class NvidiaDeviceInternal:
 
 
 class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
+    def _map_cfg_space(self):
+        if self.mmio_access_type == "vfio":
+            from utils.vfio import bind_vfio_pci
+            bind_vfio_pci(self.bdf, force=self.vfio_force_bind)
+        return super()._map_cfg_space()
+
     @property
     def device_units(self):
         from gpu.units import gpu_units_cached
@@ -3409,20 +3415,15 @@ class Gpu(NvidiaDevice):
             self.chip = chip
             debug(f"{self} detected as {arch} {chip}")
 
-        if self.chip == "unknown":
-            if self.device >= 0x22f0 and self.device < 0x2380:
-                self.arch = "hopper"
-                self.chip = "gh100"
-
         if self.chip != "unknown":
             # Default name for unknown GPUs. Known GPUs will override this based
             # on extra properties below
             self.name = f"Generic-{self.chip.upper()}"
 
+        if self.is_hopper_plus:
             from gpu.regs.core import RegisterInterface
             self.regs = RegisterInterface(self)
 
-        if self.is_hopper_plus:
             self.is_pmu_reset_in_pmc = self.is_pascal_10x_plus
             self.is_memory_clear_supported = self.is_turing_plus
 
@@ -3465,7 +3466,9 @@ class Gpu(NvidiaDevice):
             debug(f"{self} boot {self.pmcBoot0:#x} sec fault {sec_fault:#x}")
             raise BrokenGpuErrorSecFault(self.pmcBoot0, sec_fault)
 
-        if self.chip == "unknown":
+        # Older GPUs still use the boot-register table for operational capabilities.
+        # Recognizing their PCI ID alone does not provide those capabilities.
+        if not self.is_hopper_plus:
             gpu_map_key = self.pmcBoot0
             if gpu_map_key in GPU_MAP_MULTIPLE:
                 match = GPU_MAP_MULTIPLE[self.pmcBoot0]
@@ -3481,8 +3484,10 @@ class Gpu(NvidiaDevice):
             gpu_props = self.gpu_props
             self.props = gpu_props
             self.name = gpu_props["name"]
-            self.arch = gpu_props["arch"]
-            self.chip = gpu_props.get("chip", None)
+            if self.arch == "unknown":
+                self.arch = gpu_props["arch"]
+            if self.chip == "unknown":
+                self.chip = gpu_props.get("chip", None)
             self.is_pmu_reset_in_pmc = gpu_props["pmu_reset_in_pmc"]
             self.is_memory_clear_supported = gpu_props["memory_clear_supported"]
             self.is_forcing_ecc_on_after_reset_supported = gpu_props["forcing_ecc_on_after_reset_supported"]

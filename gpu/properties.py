@@ -21,9 +21,16 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from .devid_names import GPU_NAME_BY_DEVID
+from .devid_names import GPU_NAME_BY_DEVID, GPU_NAME_BY_DEVID_SSID
 from .devid_properties import GPU_PROPS_BY_DEVID
 from .devid_chips import GPU_DEVID_CHIPS
+
+# Matches NVSWITCH_MAP in nvidia_gpu_tools.py.
+_NVSWITCH_METADATA = {
+    0x1AF1: ("LR10", "limerock", "lr10"),
+    0x22A3: ("NVSwitch_gen3", "laguna", "ls10"),
+}
+
 
 class GpuProperties:
     def __init__(self, boot0, devid, ssid):
@@ -32,7 +39,8 @@ class GpuProperties:
         self.ssid = ssid
 
     def _get_properties(self, devid):
-        name = GPU_NAME_BY_DEVID.get(devid, None)
+        name = GPU_NAME_BY_DEVID_SSID.get(
+            (devid, self.ssid), GPU_NAME_BY_DEVID.get(devid))
         props = GPU_PROPS_BY_DEVID.get((devid, self.ssid), [])
         return {
             "name": name,
@@ -56,6 +64,20 @@ class GpuProperties:
                 break
 
         return self.get_properties()
+
+    def get_metadata(self):
+        """Return PCI-ID-derived identity without accessing the device."""
+        arch, chip = self.get_chip_family(self.devid)
+        properties = self.get_properties()
+        name = properties["name"]
+        if name is None and chip is not None:
+            name = "Generic-" + chip.upper()
+        return {"name": name, "arch": arch, "chip": chip}
+
+    @staticmethod
+    def get_nvswitch_metadata(devid):
+        name, arch, chip = _NVSWITCH_METADATA.get(devid, (None, None, None))
+        return {"name": name, "arch": arch, "chip": chip}
 
     @staticmethod
     def get_chip_family(devid):

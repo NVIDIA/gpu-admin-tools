@@ -22,6 +22,11 @@
 #
 
 class PluginBase:
+    # Set to False for commands that operate on discovered PCI identity only.
+    # Their standard hooks receive DeviceInfo records instead of initialized GPUs.
+    # Global hardware operations can still request initialization independently.
+    requires_device_init = True
+
     def register_options(self, parser):
         """Register CLI options for this plugin."""
         raise NotImplementedError

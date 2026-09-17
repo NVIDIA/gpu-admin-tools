@@ -30,8 +30,8 @@ import platform
 import threading
 
 
-# Minimal /dev/mods interface needed to map PCI BARs.  The structure layouts
-# and ioctl numbers mirror mods.h in the open-source MODS kernel driver:
+# Minimal /dev/mods interface for PCI BAR mapping and config access.  The
+# structure layouts and ioctl numbers mirror mods.h in the open-source driver:
 # https://github.com/NVIDIA/mods-kernel-driver/blob/v4.31/mods.h
 
 MODS_IOC_MAGIC = ord('x')
@@ -109,6 +109,24 @@ class ModsPciGetBarInfo2(_ModsPackedStructure):
     ]
 
 
+class ModsPciRead2(_ModsPackedStructure):
+    _fields_ = [
+        ("pci_device", ModsPciDev2),
+        ("address", ctypes.c_uint32),
+        ("data_size", ctypes.c_uint32),
+        ("data", ctypes.c_uint32),
+    ]
+
+
+class ModsPciWrite2(_ModsPackedStructure):
+    _fields_ = [
+        ("pci_device", ModsPciDev2),
+        ("address", ctypes.c_uint32),
+        ("data", ctypes.c_uint32),
+        ("data_size", ctypes.c_uint32),
+    ]
+
+
 class ModsMemoryType(_ModsPackedStructure):
     _fields_ = [
         ("physical_address", ctypes.c_uint64),
@@ -120,6 +138,8 @@ class ModsMemoryType(_ModsPackedStructure):
 MODS_ESC_GET_API_VERSION = _IOWR(17, ModsGetVersion)
 MODS_ESC_SET_MEMORY_TYPE = _IOW(22, ModsMemoryType)
 MODS_ESC_PCI_GET_BAR_INFO_2 = _IOWR(60, ModsPciGetBarInfo2)
+MODS_ESC_PCI_READ_2 = _IOWR(62, ModsPciRead2)
+MODS_ESC_PCI_WRITE_2 = _IOW(63, ModsPciWrite2)
 MODS_ESC_VERIFY_ACCESS_TOKEN = _IOW(109, ModsAccessToken)
 
 
@@ -134,7 +154,7 @@ def _parse_bdf(bdf):
 
 
 class _ModsSession:
-    """Keep one MODS client open for the lifetime of all BAR mappings.
+    """Keep one MODS client open for all BAR mappings and config objects.
 
     Unless the driver is configured for multiple instances or an access token
     has been acquired, it accepts only one open client.  The driver also expects
@@ -145,7 +165,7 @@ class _ModsSession:
     _map_lock = threading.Lock()
     _fd = None
     _path = None
-    # Number of live ModsBar objects using the shared client.
+    # Number of live ModsBar and ModsConfig objects using the shared client.
     _users = 0
 
     @classmethod
@@ -182,6 +202,81 @@ class _ModsSession:
                 os.close(cls._fd)
                 cls._fd = None
                 cls._path = None
+
+
+class ModsConfig:
+    """PCI config access through domain-aware MODS ioctls.
+
+    size is the device's config-space size, supplied by the caller.  The
+    driver does not propagate PCI transaction status, so ioctl success alone
+    does not guarantee that a hardware read or write succeeded.
+    """
+
+    def __init__(self, bdf, size, path="/dev/mods"):
+        self._has_session = False
+        self.pci_device = _parse_bdf(bdf)
+        if size not in (256, 4096):
+            raise ValueError(f"Invalid PCI config space size {size}")
+        self.size = size
+        self.bdf = bdf
+        self.path = path
+        self.fd = _ModsSession.acquire(path)
+        self._has_session = True
+
+    def close(self):
+        if self._has_session:
+            _ModsSession.release()
+            self._has_session = False
+
+    def __del__(self):
+        self.close()
+
+    def _validate_access(self, offset, size):
+        if not self._has_session:
+            raise ValueError("MODS config access after close")
+        if size not in (1, 2, 4):
+            raise ValueError(f"Unhandled config access size {size}")
+        if offset < 0 or offset + size > self.size or offset % size:
+            raise ValueError(f"Invalid PCI config access at {offset:#x}, size {size}")
+
+    def _ioctl(self, request, data, name):
+        try:
+            fcntl.ioctl(self.fd, request, data, True)
+        except OSError as err:
+            raise OSError(err.errno,
+                          f"{self.path} ioctl {name} for {self.bdf} at "
+                          f"{data.address:#x} failed: {err.strerror}") from err
+
+    def read(self, offset, size):
+        self._validate_access(offset, size)
+        data = ModsPciRead2(self.pci_device, offset, size, 0)
+        self._ioctl(MODS_ESC_PCI_READ_2, data, "MODS_ESC_PCI_READ_2")
+        return data.data
+
+    def write(self, offset, data, size):
+        self._validate_access(offset, size)
+        if not 0 <= data < (1 << (8 * size)):
+            raise ValueError(f"Invalid PCI config data {data} for size {size}")
+        request = ModsPciWrite2(self.pci_device, offset, data, size)
+        self._ioctl(MODS_ESC_PCI_WRITE_2, request, "MODS_ESC_PCI_WRITE_2")
+
+    def read8(self, offset):
+        return self.read(offset, 1)
+
+    def read16(self, offset):
+        return self.read(offset, 2)
+
+    def read32(self, offset):
+        return self.read(offset, 4)
+
+    def write8(self, offset, data):
+        self.write(offset, data, 1)
+
+    def write16(self, offset, data):
+        self.write(offset, data, 2)
+
+    def write32(self, offset, data):
+        self.write(offset, data, 4)
 
 
 class ModsBar:

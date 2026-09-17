@@ -26,21 +26,24 @@ import time
 import logging
 import argparse
 import os
+from contextlib import nullcontext, redirect_stdout
 
 from logging import info, error, warning, debug
 
 from cli.no_device import main_no_device
 from cli.per_device import main_per_device
-from cli.per_gpu_nvswitch import main_per_gpu_or_nvswitch
+from cli.per_gpu import main_per_gpu
+from cli.per_gpu_nvswitch import main_per_gpu_or_nvswitch, main_gpu_or_nvswitch_optional
 from utils import platform_config, int_from_data, read_ints_from_path
 from pci import PciDevice, PciDevices
 from gpu.defines import *
 from gpu import GpuError, FspRpcError
 
 
-from pci.devices import find_gpus
+from pci.devices import discover_devices, initialize_devices
+from pci.discovery import select_devices
 
-VERSION = "v2026.09.09o"
+VERSION = "v2026.09.16o"
 
 # Check that modules needed to access devices on the system are available
 def check_device_module_deps():
@@ -73,10 +76,39 @@ class SmartFormatter(argparse.HelpFormatter):
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
 
+class DeviceArgumentParser(argparse.ArgumentParser):
+    """Global operations initialize devices unless they explicitly opt out."""
+
+    def add_argument(self, *args, requires_device_init=True, **kwargs):
+        action = super().add_argument(*args, **kwargs)
+        action.requires_device_init = requires_device_init
+        return action
+
+    def device_init_arguments(self, namespace):
+        """Return active arguments needing hardware, including zero offsets."""
+        active = []
+        for action in self._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                # Plugins declare their initialization policy as a whole.
+                continue
+            requirement = getattr(action, "requires_device_init", True)
+            default = self.get_default(action.dest)
+            value = getattr(namespace, action.dest, default)
+            if not requirement or value == default:
+                continue
+            if callable(requirement) and not requirement(value):
+                continue
+            active.append(action.option_strings[0] if action.option_strings else action.dest)
+        return active
+
+
+def _includes_gpu(sources):
+    return "GPU" in (sources or [])
+
+
 def create_args():
-    argp = argparse.ArgumentParser(prog="nvidia_gpu_tools.py", formatter_class=SmartFormatter)
-    if platform_config.is_sysfs_available:
-        argp.add_argument("--devices",
+    argp = DeviceArgumentParser(prog="nvidia_gpu_tools.py", formatter_class=SmartFormatter)
+    argp.add_argument("--devices", requires_device_init=False,
                            help="R|Generic device selector supporting multiple comma-separated specifiers:\n"
                            "- 'gpus' - Find all NVIDIA GPUs\n"
                            "- 'gpus[n]' - Find nth NVIDIA GPU\n"
@@ -85,14 +117,18 @@ def create_args():
                            "- 'nvswitches[n]' - Find nth NVIDIA NVSwitch\n"
                            "- 'vendor:device' - Find devices matching 4-digit hex vendor:device ID\n"
                            "- 'domain:bus:device.function' - Find device at specific BDF address")
-    argp.add_argument("--gpu", type=auto_int, default=-1)
-    argp.add_argument("--gpu-bdf", help="Select a single GPU by providing a substring of the BDF, e.g. '01:00'.")
-    argp.add_argument("--gpu-name", help="Select a single GPU by providing a substring of the GPU name, e.g. 'T4'. If multiple GPUs match, the first one will be used.")
-    argp.add_argument("--no-gpu", action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
-    argp.add_argument("--log", choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
+    argp.add_argument("--gpu", requires_device_init=False, type=auto_int, default=-1)
+    argp.add_argument("--gpu-bdf", requires_device_init=False, help="Select a single GPU by providing a substring of the BDF, e.g. '01:00'.")
+    argp.add_argument("--gpu-name", requires_device_init=False, help="Select a single GPU by providing a substring of the GPU name, e.g. 'T4'. If multiple GPUs match, the first one will be used.")
+    argp.add_argument("--no-gpu", requires_device_init=False, action='store_true', help="Do not use any of the GPUs; commands requiring one will not work.")
+    argp.add_argument("--list-device-bdfs", requires_device_init=False, action='store_true',
+                      help="Print selected PCI addresses, one per stdout line, without requiring device initialization; send other output to stderr")
+    argp.add_argument("--log", requires_device_init=False, choices=['debug', 'info', 'warning', 'error', 'critical'], default='info')
     if platform_config.is_linux:
-        argp.add_argument("--mmio-access-type", choices=['devmem', 'sysfs', 'mods'], default='sysfs',
-                          help="On Linux, specify whether to do MMIO through /dev/mem, /sys/bus/pci/devices/.../resourceN, or /dev/mods")
+        argp.add_argument("--mmio-access-type", requires_device_init=False, choices=['devmem', 'sysfs', 'mods', 'vfio'], default='sysfs',
+                          help="On Linux, specify whether to do MMIO through /dev/mem, /sys/bus/pci/devices/.../resourceN, /dev/mods, or vfio-pci (automatically binds unbound devices; requires an IOMMU). mods also uses /dev/mods for PCI config access; vfio uses VFIO for bound devices; devmem and sysfs use sysfs for PCI config access")
+        argp.add_argument("--vfio-force-bind", requires_device_init=False, action='store_true',
+                          help="With --mmio-access-type vfio, unbind selected devices from their current driver and bind to vfio-pci; stop device workloads first")
 
     argp.add_argument("--recover-broken-gpu", action='store_true', default=False,
                       help="""Attempt recovering a broken GPU (unresponsive config space or MMIO) by performing an SBR. If the GPU is
@@ -164,7 +200,7 @@ reenumarate it in the OS by sysfs remove/rescan to restore BARs etc.""")
 The option can be specified multiple times to list specific knobs or 'all' can be used to indicate all supported ones should be reset.""")
     argp.add_argument("--knobs-reset-to-defaults-assume-no-pending-changes", action='store_true', help="Indicate that the device was reset after last time any knobs were modified. This allows the reset to defaults to be slightly optimized by querying the current state")
     argp.add_argument("--knobs-reset-to-defaults-test", action='store_true', help="Test knob setting and resetting")
-    argp.add_argument("--noop", action='store_true', help="An empty option that can be used to separate nargs=+ options from positional arguments")
+    argp.add_argument("--noop", requires_device_init=False, action='store_true', help="An empty option that can be used to separate nargs=+ options from positional arguments")
     argp.add_argument("--force-ecc-on-after-reset", action='store_true', default=False,
                     help="Force ECC to be enabled after a subsequent GPU reset")
     argp.add_argument("--test-ecc-toggle", action='store_true', default=False,
@@ -195,7 +231,8 @@ The option can be specified multiple times to list specific knobs or 'all' can b
     argp.add_argument("--ignore-nvidia-driver", action='store_true', default=False, help="Do not treat nvidia driver apearing to be loaded as an error")
     argp.add_argument("--debug-dump-fsp-dmem-logs", action="store_true", help="Download and dump FSP DMEM debug logs from the GPU (outputs fsp_dmem_logs_gpu_{BDF}.bin). Applicable on Blackwell+ GPUs. This binary can be shared with NVIDIA for debug.")
 
-    subparsers = argp.add_subparsers(dest="command", required=False)
+    subparsers = argp.add_subparsers(dest="command", required=False,
+                                   parser_class=argparse.ArgumentParser)
     from cli.plugins import load_plugins
     plugins = load_plugins()
     for name, plugin in plugins.items():
@@ -257,128 +294,124 @@ def init():
     argp, plugins = create_args()
     opts = argp.parse_args([])
 
-def main():
-    print(f"NVIDIA GPU Tools version {VERSION}")
-    print(f"Command line arguments: {sys.argv}")
+def _print_inventory(inventory):
+    nvidia = [device for device in inventory if device.is_gpu() or device.is_nvswitch()]
+    print("GPUs and NVSwitches:")
+    for index, device in enumerate(nvidia):
+        print(" ", index, device)
+    print("Other PCI devices:")
+    for device in inventory:
+        if not device.is_gpu() and not device.is_nvswitch():
+            print(" ", device)
     sys.stdout.flush()
 
+
+def main():
     global opts
 
     argp, plugins = create_args()
     opts = argp.parse_args()
+    bdf_output = sys.stdout
+    with redirect_stdout(sys.stderr) if opts.list_device_bdfs else nullcontext():
+        _run_main(argp, plugins, bdf_output)
+
+
+def _run_main(argp, plugins, bdf_output):
+    print(f"NVIDIA GPU Tools version {VERSION}")
+    print(f"Command line arguments: {sys.argv}")
+    sys.stdout.flush()
+
+    if platform_config.is_linux and opts.vfio_force_bind and opts.mmio_access_type != "vfio":
+        argp.error("--vfio-force-bind requires --mmio-access-type vfio")
 
     logging.basicConfig(level=getattr(logging, opts.log.upper()),
                         format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d,%H:%M:%S')
 
-    plugin = None
-    if opts.command is not None:
-        plugin = plugins[opts.command]
-    if plugin:
-        if not plugin.execute_early(opts):
-            sys.exit(1)
-
-    if platform_config.is_linux:
-        PciDevice.mmio_access_type = opts.mmio_access_type
-        if opts.mmio_access_type == "mods" and not os.path.exists("/dev/mods"):
-            error("/dev/mods is missing, is mods.ko not loaded?")
-            sys.exit(1)
-
-    if not opts.no_gpu:
-        check_device_module_deps()
+    plugin = plugins.get(opts.command)
+    if plugin and not plugin.execute_early(opts):
+        sys.exit(1)
 
 
+    try:
+        # --no-gpu must also work on hosts without a device-discovery backend.
+        inventory = [] if opts.no_gpu else discover_devices(
+            devices=opts.devices, gpu_bdf=opts.gpu_bdf)
+        selected = select_devices(
+            inventory,
+            devices=opts.devices,
+            gpu=opts.gpu,
+            gpu_bdf=opts.gpu_bdf,
+            gpu_name=opts.gpu_name,
+            no_gpu=opts.no_gpu,
+        )
+    except Exception as err:
+        debug("Device discovery or selection failed", exc_info=True)
+        error("%s", err)
+        sys.exit(1)
 
-    if opts.gpu_bdf is not None:
-        gpus, other = find_gpus(opts.gpu_bdf)
-        if len(gpus) == 0:
-            error("Matching for {0} found nothing".format(opts.gpu_bdf))
-            sys.exit(1)
-        elif len(gpus) > 1:
-            error("Matching for {0} found more than one GPU {1}".format(opts.gpu_bdf, ", ".join([str(g) for g in gpus])))
-            sys.exit(1)
-        else:
-            gpu = gpus[0]
-        device = gpu
-        devices = [gpu]
-    elif opts.gpu_name is not None:
-        gpus, other = find_gpus()
-        gpus = [g for g in gpus if opts.gpu_name in g.name]
-        if len(gpus) == 0:
-            error("Matching for {0} found nothing".format(opts.gpu_name))
-            sys.exit(1)
-        gpu = gpus[0]
-        device = gpu
-        devices = [gpu]
-    elif platform_config.is_sysfs_available and opts.devices:
-        import pci
-        devices = pci.devices.find_devices_from_string(opts.devices)
-        if len(devices) == 0:
-            error(f"No devices found matching: {opts.devices}")
-            sys.exit(1)
-        device = devices[0]
-    elif opts.no_gpu:
-        gpu = None
-        device = None
-        devices = []
+    if opts.no_gpu:
         info("Using no GPU")
-    else:
-        gpus, other = find_gpus()
-        print("GPUs:")
-        for i, g in enumerate(gpus):
-            print(" ", i, g)
-        print("Other:")
-        for i, o in enumerate(other):
-            print(" ", i, o)
-        sys.stdout.flush()
+    elif not selected:
+        _print_inventory(inventory)
+        info("Select devices with --devices, --gpu, --gpu-bdf, or --gpu-name")
 
-        if opts.gpu == -1:
-            info("No GPU specified, select GPU with --gpu, --gpu-bdf, or --gpu-name")
-            return 0
+    device_arguments = argp.device_init_arguments(opts)
+    if device_arguments and not selected:
+        error("%s requires a selected device; use --devices, --gpu, --gpu-bdf, or --gpu-name",
+              ", ".join(device_arguments))
+        sys.exit(1)
 
-        if opts.gpu >= len(gpus):
-            raise ValueError("GPU index out of bounds")
-        gpu = gpus[opts.gpu]
-        device = gpu
-        devices = [gpu]
-
-
-    if device and device.is_gpu():
-        gpu = device
-
-    if plugin:
-        if not plugin.execute_before_main(opts, devices):
+    plugin_needs_init = plugin is not None and plugin.requires_device_init
+    devices = []
+    if selected and (device_arguments or plugin_needs_init):
+        if platform_config.is_linux:
+            PciDevice.mmio_access_type = opts.mmio_access_type
+            PciDevice.vfio_force_bind = opts.vfio_force_bind
+            if opts.mmio_access_type == "mods" and not os.path.exists("/dev/mods"):
+                error("/dev/mods is missing, is mods.ko not loaded?")
+                sys.exit(1)
+        try:
+            check_device_module_deps()
+            devices = initialize_devices(selected)
+        except Exception as err:
+            debug("Device initialization failed", exc_info=True)
+            error("%s", err)
             sys.exit(1)
 
-    if len(devices) != 0:
-        print_topo()
-        for d in devices:
-            info(f"Selected {d}")
+    # Metadata-only plugins keep receiving the selected identity records even
+    # when preceding global operations requested initialized GPU objects.
+    plugin_devices = devices if plugin_needs_init else selected
+    if plugin and not plugin.execute_before_main(opts, plugin_devices):
+        sys.exit(1)
 
-    from .no_device import main_no_device
-    from .per_gpu import main_per_gpu
-    from .per_gpu_nvswitch import main_per_gpu_or_nvswitch, main_gpu_or_nvswitch_optional
-    from .per_device import main_per_device
+    if devices:
+        print_topo()
+    for device in devices or selected:
+        info("Selected %s", device)
+    if opts.list_device_bdfs:
+        for device in selected:
+            print(device.bdf, file=bdf_output)
 
     if not main_no_device(opts):
         sys.exit(1)
 
-    if not main_gpu_or_nvswitch_optional(device, opts):
+    first_device = devices[0] if devices else None
+    if not main_gpu_or_nvswitch_optional(first_device, opts):
         sys.exit(1)
 
-    for d in devices:
-        if not main_per_device(d, opts):
+    for device in devices:
+        if not main_per_device(device, opts):
             sys.exit(1)
-        if d.is_gpu():
-            if not main_per_gpu(d, opts):
+        if device.is_gpu():
+            if not main_per_gpu(device, opts):
                 sys.exit(1)
-        if d.is_gpu() or d.is_nvswitch():
-            if not main_per_gpu_or_nvswitch(d, opts):
+        if device.is_gpu() or device.is_nvswitch():
+            if not main_per_gpu_or_nvswitch(device, opts):
                 sys.exit(1)
 
     if opts.test_pcie_p2p:
-        pcie_p2p_test([gpu for gpu in devices if gpu.is_gpu()])
+        pcie_p2p_test([device for device in devices if device.is_gpu()])
 
-    if plugin:
-        if not plugin.execute_after_main(opts, devices):
-            sys.exit(1)
+    if plugin and not plugin.execute_after_main(opts, plugin_devices):
+        sys.exit(1)
