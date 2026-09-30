@@ -473,6 +473,7 @@ class PciDevice(Device):
         remove_path = os.path.join(self.dev_path, "remove")
         if not os.path.exists(remove_path):
             debug("%s remove not present: '%s'", self, remove_path)
+            return
         with open(remove_path, "w") as f:
             f.write("1")
 
@@ -480,6 +481,7 @@ class PciDevice(Device):
         path = os.path.join(self.dev_path, "rescan")
         if not os.path.exists(path):
             debug("%s path not present: '%s'", self, path)
+            return
         with open(path, "w") as f:
             f.write("1")
 
@@ -517,6 +519,7 @@ class PciDevice(Device):
         reset_path = os.path.join(self.dev_path, "reset")
         if not os.path.exists(reset_path):
             error("%s reset not present: '%s'", self, reset_path)
+            return
         with open(reset_path, "w") as rf:
             self.reset_pre()
             rf.write("1")
