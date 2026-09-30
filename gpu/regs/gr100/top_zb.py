@@ -1,0 +1,295 @@
+#
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+
+from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
+
+# Register definitions
+NV_PTOP_ZB_DEVICE_INFO_CFG = RegisterMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG',
+    address=0x4fc,
+    zero_based=True
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_DEVICES = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_DEVICES',
+    msb=15,
+    lsb=4,
+    register=NV_PTOP_ZB_DEVICE_INFO_CFG
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_DEVICES_INIT = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_DEVICES_INIT',
+    value=272,
+    field=NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_DEVICES
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_ROWS_PER_DEVICE = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_ROWS_PER_DEVICE',
+    msb=19,
+    lsb=16,
+    register=NV_PTOP_ZB_DEVICE_INFO_CFG
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_ROWS_PER_DEVICE_INIT = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_ROWS_PER_DEVICE_INIT',
+    value=3,
+    field=NV_PTOP_ZB_DEVICE_INFO_CFG_MAX_ROWS_PER_DEVICE
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_NUM_ROWS = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_NUM_ROWS',
+    msb=31,
+    lsb=20,
+    register=NV_PTOP_ZB_DEVICE_INFO_CFG
+)
+
+NV_PTOP_ZB_DEVICE_INFO_CFG_NUM_ROWS_INIT = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_CFG_NUM_ROWS_INIT',
+    value=635,
+    field=NV_PTOP_ZB_DEVICE_INFO_CFG_NUM_ROWS
+)
+
+NV_PTOP_ZB_NEXT_PTOP_PRI_BASE = RegisterMetadata(
+    name='NV_PTOP_ZB_NEXT_PTOP_PRI_BASE',
+    address=0x504,
+    zero_based=True
+)
+
+NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE = FieldMetadata(
+    name='NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_PTOP_ZB_NEXT_PTOP_PRI_BASE
+)
+
+NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE_NULL = ValueMetadata(
+    name='NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE_NULL',
+    value=4294967295,
+    field=NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE
+)
+NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE_UGD0 = ValueMetadata(
+    name='NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE_UGD0',
+    value=139264,
+    field=NV_PTOP_ZB_NEXT_PTOP_PRI_BASE_VALUE
+)
+
+# Array definitions
+NV_PTOP_ZB_DEVICE_INFO = ArrayMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO',
+    base_address=0x800,
+    stride=4,
+    size=222,
+    zero_based=True
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_BROADCAST_PRI_BASE = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_BROADCAST_PRI_BASE',
+    msb=95,
+    lsb=66,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA',
+    msb=33,
+    lsb=32,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_0 = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_0',
+    value=0,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_1 = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_1',
+    value=1,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_2 = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_2',
+    value=2,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_3_OR_MORE = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA_3_OR_MORE',
+    value=3,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_EXTRA
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT',
+    msb=64,
+    lsb=64,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT_BROADCAST = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT_BROADCAST',
+    value=0,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT_ENGINE = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT_ENGINE',
+    value=1,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_ENTRY_FORMAT
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_PRI_BASE = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_DEVICE_PRI_BASE',
+    msb=63,
+    lsb=34,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_FAULT_ID = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_FAULT_ID',
+    msb=11,
+    lsb=0,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_FAULT_ID_INVALID = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_FAULT_ID_INVALID',
+    value=0,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_FAULT_ID
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_GIN_TARGET_ID = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_GIN_TARGET_ID',
+    msb=16,
+    lsb=12,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_GIN_TARGET_ID_INVALID = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_GIN_TARGET_ID_INVALID',
+    value=31,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_GIN_TARGET_ID
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_INSTANCE_ID = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_INSTANCE_ID',
+    msb=24,
+    lsb=17,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_RLENG_ID = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_RLENG_ID',
+    msb=67,
+    lsb=66,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_RSVD = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_RSVD',
+    msb=65,
+    lsb=65,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_RSVD_VALUE = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_RSVD_VALUE',
+    value=0,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_RSVD
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_RUNLIST_PRI_BASE = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_RUNLIST_PRI_BASE',
+    msb=95,
+    lsb=68,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM',
+    msb=31,
+    lsb=25,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBHUB = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBHUB',
+    value=27,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBPA = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBPA',
+    value=85,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBPA_CLKS = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_FBPA_CLKS',
+    value=71,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HSHUB = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HSHUB',
+    value=24,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HSHUBMMU = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HSHUBMMU',
+    value=32,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HUBMMU = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_HUBMMU',
+    value=53,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_L2SLICE = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_L2SLICE',
+    value=83,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_LTC = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_LTC',
+    value=82,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_NVLPW = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_NVLPW',
+    value=28,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_SYSLTC = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM_SYSLTC',
+    value=49,
+    field=NV_PTOP_ZB_DEVICE_INFO_DEV_TYPE_ENUM
+)
+
+NV_PTOP_ZB_DEVICE_INFO_ROW_VALUE = FieldMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_ROW_VALUE',
+    msb=31,
+    lsb=0,
+    register=NV_PTOP_ZB_DEVICE_INFO
+)
+
+NV_PTOP_ZB_DEVICE_INFO_ROW_VALUE_INVALID = ValueMetadata(
+    name='NV_PTOP_ZB_DEVICE_INFO_ROW_VALUE_INVALID',
+    value=0,
+    field=NV_PTOP_ZB_DEVICE_INFO_ROW_VALUE
+)
+

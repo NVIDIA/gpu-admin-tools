@@ -151,6 +151,8 @@ class NvlinkPlu(GpuPriUnit):
 
     def _port_state_register(self):
         regs = self.gpu.regs.plu_int
+        if self.gpu.is_rubin_plus:
+            return regs.NV_R_LWSYSIXN
         return regs.NV_R_ZXCXJFYF
 
     def read_port_state(self):

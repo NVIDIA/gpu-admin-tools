@@ -1,0 +1,1774 @@
+#
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+
+from gpu.regs.core import RegisterMetadata, FieldMetadata, ValueMetadata, ArrayMetadata, DeviceMetadata
+
+
+# Registers identical to gb100
+from gpu.regs.gb100.hshub_int import (
+    NV_R_QUVQUPWB,
+    NV_R_QUVQUPWB_F_WIQYAUTG,
+    NV_R_QUVQUPWB_F_IMVWSWMC,
+    NV_R_QUVQUPWB_F_ZUQRAMEI,
+    NV_R_QUVQUPWB_F_EJMRXLLB,
+    NV_R_QUVQUPWB_F_TNRXBLAJ,
+    NV_R_QUVQUPWB_F_OTIIOJRE,
+    NV_R_QUVQUPWB_F_KMVCGWPC,
+    NV_R_QUVQUPWB_F_WATNYSMF,
+    NV_R_QUVQUPWB_F_IYOVZRDD,
+    NV_R_QUVQUPWB_F_QLUEIMZI,
+    NV_R_QUVQUPWB_F_AXTOXWRI,
+    NV_R_QUVQUPWB_F_RKPHJIZG,
+    NV_R_QUVQUPWB_F_USDTRVWY,
+    NV_R_QUVQUPWB_F_RKIOSCXE,
+    NV_R_QUVQUPWB_F_IHXDLTAC,
+    NV_R_QUVQUPWB_F_UOBXRRTO,
+    NV_R_QUVQUPWB_F_CZOYZZNH,
+    NV_R_QUVQUPWB_F_NTROPNLV,
+    NV_R_QUVQUPWB_F_NCUCLHBI,
+    NV_R_QUVQUPWB_F_TONBFYBM,
+    NV_R_QUVQUPWB_F_QBPYKSPB,
+    NV_R_QUVQUPWB_F_EMBORNAQ,
+    NV_R_QUVQUPWB_F_NOXIKTRY,
+    NV_R_QUVQUPWB_F_LPFHVXKX,
+    NV_R_QUVQUPWB_F_SSRWXEYF,
+    NV_R_QUVQUPWB_F_XHYYVIOW,
+    NV_R_QUVQUPWB_F_PAHJXJEM,
+    NV_R_QUVQUPWB_F_LUXJJNDP,
+    NV_R_SOOJLMNX,
+    NV_R_SOOJLMNX_F_PJGLONTU,
+    NV_R_SOOJLMNX_F_QTOMYCXN,
+    NV_R_SOOJLMNX_F_FVRREFSB,
+    NV_R_SOOJLMNX_F_QRCGJVZC,
+    NV_R_SOOJLMNX_F_JXJMYLYI,
+    NV_R_SOOJLMNX_F_RCOHLGQP,
+    NV_R_SOOJLMNX_F_NWJGYSGM,
+    NV_R_SOOJLMNX_F_CHTZCNQV,
+    NV_R_SOOJLMNX_F_ABWKHQVV,
+    NV_R_SOOJLMNX_F_QZEZPABN,
+    NV_R_SOOJLMNX_F_LUFCKCUN,
+    NV_R_SOOJLMNX_F_TYVWXMGK,
+    NV_R_SOOJLMNX_F_LSBZLQJB,
+    NV_R_SOOJLMNX_F_TMUOCGEX,
+    NV_R_SOOJLMNX_F_XZWGPEQW,
+    NV_R_SOOJLMNX_F_OTRCTJNH,
+    NV_R_SOOJLMNX_F_OPRJIHTH,
+    NV_R_SOOJLMNX_F_RHOSRWOJ,
+    NV_R_SOOJLMNX_F_UNUKIFFK,
+    NV_R_SOOJLMNX_F_MBVUYMBH,
+    NV_R_SOOJLMNX_F_OSHVWILX,
+    NV_R_SOOJLMNX_F_IDMEDOVI,
+    NV_R_SOOJLMNX_F_XNWUVRYB,
+    NV_R_SOOJLMNX_F_JHPPFRTR,
+    NV_R_SOOJLMNX_F_JUEMQAVI,
+    NV_R_SOOJLMNX_F_HJHMPXKT,
+    NV_R_SOOJLMNX_F_QWBWTMYU,
+    NV_R_SOOJLMNX_F_WPJEDLQH,
+    NV_R_TXUCVHRP,
+    NV_R_TXUCVHRP_F_AEOEXXTI,
+    NV_R_TXUCVHRP_F_PDDCNVAL,
+    NV_R_TXUCVHRP_F_GSHGPXTW,
+    NV_R_TXUCVHRP_F_FYXEOLOI,
+    NV_R_TXUCVHRP_F_UECGYRHG,
+    NV_R_TXUCVHRP_F_UNRCNUPF,
+    NV_R_TXUCVHRP_F_BGAQAWUR,
+    NV_R_TXUCVHRP_F_BSJFMBBJ,
+    NV_R_TXUCVHRP_F_TBVKWJVC,
+    NV_R_TXUCVHRP_F_PPNOPFMF,
+    NV_R_TXUCVHRP_F_SHZDJMKW,
+    NV_R_TXUCVHRP_F_SUZIODBV,
+    NV_R_TXUCVHRP_F_DOBCVIIR,
+    NV_R_TXUCVHRP_F_JWGBZBYK,
+    NV_R_TXUCVHRP_F_IBTQZNBI,
+    NV_R_TXUCVHRP_F_LQCPFHBN,
+    NV_R_OOOWULGZ,
+    NV_R_OOOWULGZ_F_GMLKXVPK,
+    NV_R_OOOWULGZ_F_KLZJQJIL,
+    NV_R_OOOWULGZ_F_WFGSECYG,
+    NV_R_OOOWULGZ_F_JRVWZFHN,
+    NV_R_OOOWULGZ_F_NJOAWENL,
+    NV_R_OOOWULGZ_F_ZGDFPAHD,
+    NV_R_OOOWULGZ_F_TWKIHMRO,
+    NV_R_OOOWULGZ_F_IWGXANVI,
+    NV_R_OOOWULGZ_F_ODERJZJQ,
+    NV_R_OOOWULGZ_F_GDAIEDQX,
+    NV_R_OOOWULGZ_F_QLHZBZGT,
+    NV_R_OOOWULGZ_F_PQQMWGCO,
+    NV_R_OOOWULGZ_F_DZBIJKFT,
+    NV_R_OOOWULGZ_F_GXEWEQKY,
+    NV_R_OOOWULGZ_F_IGUGRDBW,
+    NV_R_OOOWULGZ_F_LIOBCLNL,
+    NV_R_VNWZRJFS,
+    NV_R_VNWZRJFS_F_ISAWNROL,
+    NV_R_VNWZRJFS_F_BVQUQPCB,
+    NV_R_VNWZRJFS_F_HBOFUHKI,
+    NV_R_VNWZRJFS_F_EKPZEMGL,
+    NV_R_VNWZRJFS_F_HWHRXAYQ,
+    NV_R_VNWZRJFS_F_NGAMZWXM,
+    NV_R_VNWZRJFS_F_BWDKTOIB,
+    NV_R_VNWZRJFS_F_EUOLZXXB,
+    NV_R_VNWZRJFS_F_IMDQVOVC,
+    NV_R_VNWZRJFS_F_KALLMQVS,
+    NV_R_VNWZRJFS_F_NPTASYMU,
+    NV_R_VNWZRJFS_F_SBJDPUXE,
+    NV_R_VNWZRJFS_F_IGFQMODB,
+    NV_R_VNWZRJFS_F_OMEFKFNK,
+    NV_R_VNWZRJFS_F_JXXSTZJP,
+    NV_R_VNWZRJFS_F_JSAZMAOX,
+    NV_R_JYWTIGEE,
+    NV_R_JYWTIGEE_F_EFZGTKCD,
+    NV_R_JYWTIGEE_F_INCZVMMT,
+    NV_R_JYWTIGEE_F_WOZGKVLP,
+    NV_R_JYWTIGEE_F_MJKVDMSV,
+    NV_R_JYWTIGEE_F_HZCBTQHO,
+    NV_R_JYWTIGEE_F_JXIORVOJ,
+    NV_R_JYWTIGEE_F_GWKZPXPP,
+    NV_R_JYWTIGEE_F_YZVTIBII,
+    NV_R_JYWTIGEE_F_AOUPFMWM,
+    NV_R_JYWTIGEE_F_IWMKHWMQ,
+    NV_R_JYWTIGEE_F_DOSCKVIB,
+    NV_R_JYWTIGEE_F_JKDMHRYW,
+    NV_R_JYWTIGEE_F_BUKDWYIR,
+    NV_R_JYWTIGEE_F_EWRMNVPA,
+    NV_R_JYWTIGEE_F_CFHHNEHI,
+    NV_R_JYWTIGEE_F_LFGUEAJB,
+    NV_R_JYWTIGEE_F_JYCDHYQA,
+    NV_R_JYWTIGEE_F_OLBLVJJG,
+    NV_R_JYWTIGEE_F_MIAARQHW,
+    NV_R_JYWTIGEE_F_PNEJKZVG,
+    NV_R_JYWTIGEE_F_MFJVZYXT,
+    NV_R_JYWTIGEE_F_EIHLNEJD,
+    NV_R_JYWTIGEE_F_LKDOUWBR,
+    NV_R_JYWTIGEE_F_BMRNQEQR,
+    NV_R_JYWTIGEE_F_QLHBESBL,
+    NV_R_JYWTIGEE_F_AZVYWRPI,
+    NV_R_JYWTIGEE_F_DNDXEAUR,
+    NV_R_JYWTIGEE_F_HMLGCTJH,
+    NV_R_VHQAUYTU,
+    NV_R_VHQAUYTU_F_DMHHIYYG,
+    NV_R_VHQAUYTU_F_WLFUQEOX,
+    NV_R_VHQAUYTU_F_DOQWJUMZ,
+    NV_R_VHQAUYTU_F_VWYOVUOW,
+    NV_R_VHQAUYTU_F_MKJMODNE,
+    NV_R_VHQAUYTU_F_GHCXEZOU,
+    NV_R_VHQAUYTU_F_JFTRHJLD,
+    NV_R_VHQAUYTU_F_IUZCHAAK,
+    NV_R_VHQAUYTU_F_UBVBHMBT,
+    NV_R_VHQAUYTU_F_ZWQUBJCF,
+    NV_R_VHQAUYTU_F_MZELCHNP,
+    NV_R_VHQAUYTU_F_MUDBMRHR,
+    NV_R_VHQAUYTU_F_SRTWZZCV,
+    NV_R_VHQAUYTU_F_GGEBTEBS,
+    NV_R_VHQAUYTU_F_OQHSVLUK,
+    NV_R_VHQAUYTU_F_YLVQTBHQ,
+    NV_R_VHQAUYTU_F_TDDHCDLK,
+    NV_R_VHQAUYTU_F_OKSUOQOO,
+    NV_R_VHQAUYTU_F_UTIGWPCC,
+    NV_R_VHQAUYTU_F_CIPJELPF,
+    NV_R_VHQAUYTU_F_XUUXMBQQ,
+    NV_R_UXVPSJYM,
+    NV_R_UXVPSJYM_F_TFBBCCTL,
+    NV_R_UXVPSJYM_F_KLRSVZEK,
+    NV_R_UXVPSJYM_F_DVTIKISL,
+    NV_R_UXVPSJYM_F_MGCARYJK,
+    NV_R_UXVPSJYM_F_ENOXTIYF,
+    NV_R_UXVPSJYM_F_MWZPHSWX,
+    NV_R_UXVPSJYM_F_YEHHPPVR,
+    NV_R_UXVPSJYM_F_GTAGSKOO,
+    NV_R_UXVPSJYM_F_QNEGJJDP,
+    NV_R_UXVPSJYM_F_ENKEXEGX,
+    NV_R_UXVPSJYM_F_UCPMYUDX,
+    NV_R_UXVPSJYM_F_UFDGAMUY,
+    NV_R_UXVPSJYM_F_DSAQIRCI,
+    NV_R_UXVPSJYM_F_CWSUDMIW,
+    NV_R_UXVPSJYM_F_YJBVRKQS,
+    NV_R_UXVPSJYM_F_UZYJFHDW,
+    NV_R_UXVPSJYM_F_VIRLSRDR,
+    NV_R_UXVPSJYM_F_RNTSYJIP,
+    NV_R_UXVPSJYM_F_BWDPQJJL,
+    NV_R_UXVPSJYM_F_DMPOGMYC,
+    NV_R_UXVPSJYM_F_FZGPXQHM,
+    NV_R_UXVPSJYM_F_UJZEGWXJ,
+    NV_R_UXVPSJYM_F_IIUKBYQV,
+    NV_R_UXVPSJYM_F_CRVYWQOI,
+    NV_R_UXVPSJYM_F_HSDLEIRV,
+    NV_R_UXVPSJYM_F_SWROQSFL,
+    NV_R_UXVPSJYM_F_FRUKUWBG,
+    NV_R_UXVPSJYM_F_DRUFIGIT,
+    NV_R_INVYUCZA,
+    NV_R_INVYUCZA_F_YGYCDTHC,
+    NV_R_INVYUCZA_F_WYWNQOHS,
+    NV_R_INVYUCZA_F_AFUDWTZU,
+    NV_R_INVYUCZA_F_PDWRKOOU,
+    NV_R_INVYUCZA_F_DGIDUDHK,
+    NV_R_INVYUCZA_F_CENKKGXO,
+    NV_R_INVYUCZA_F_FQOMJFOZ,
+    NV_R_INVYUCZA_F_BVJJZQWJ,
+    NV_R_INVYUCZA_F_FSVXMCDF,
+    NV_R_INVYUCZA_F_YQUMTZXS,
+    NV_R_INVYUCZA_F_YTZUELKI,
+    NV_R_INVYUCZA_F_GWSOZKVQ,
+    NV_R_INVYUCZA_F_CPOKDGOD,
+    NV_R_INVYUCZA_F_YVIZOHFL,
+    NV_R_INVYUCZA_F_GYLCXLKN,
+    NV_R_INVYUCZA_F_JISVTTJX,
+    NV_R_INVYUCZA_F_NDFWVRQC,
+    NV_R_INVYUCZA_F_VHQSXFWL,
+    NV_R_INVYUCZA_F_RKBVUCOO,
+    NV_R_INVYUCZA_F_BWNLHSTU,
+    NV_R_INVYUCZA_F_WAUWUSZS,
+    NV_R_INVYUCZA_F_MQCWCLPV,
+    NV_R_INVYUCZA_F_BIVRZSIR,
+    NV_R_DIFKGJWN,
+    NV_R_DIFKGJWN_F_NULALQEB,
+    NV_R_DIFKGJWN_F_FKCQGEXL,
+    NV_R_DIFKGJWN_F_ZEBTRXQU,
+    NV_R_DIFKGJWN_F_YLQFUGYI,
+    NV_R_DIFKGJWN_F_IAHMLKVO,
+    NV_R_DIFKGJWN_F_HWPKKPOS,
+    NV_R_DIFKGJWN_F_FEPNOJNG,
+    NV_R_DIFKGJWN_F_YONASMHB,
+    NV_R_DIFKGJWN_F_UNAHFNSJ,
+    NV_R_DIFKGJWN_F_GTNHTLPC,
+    NV_R_DIFKGJWN_F_UKSHBIPB,
+    NV_R_DIFKGJWN_F_WKNXUYEN,
+    NV_R_DIFKGJWN_F_HBQYKTFR,
+    NV_R_DIFKGJWN_F_PVTUWAZI,
+    NV_R_DIFKGJWN_F_IIJOINOH,
+    NV_R_DIFKGJWN_F_XGPRZMOL,
+    NV_R_OHXNDKZO,
+    NV_R_OHXNDKZO_F_KBHOOAYF,
+    NV_R_OHXNDKZO_F_QQNSDYPH,
+    NV_R_OHXNDKZO_F_PQYKPSKJ,
+    NV_R_OHXNDKZO_F_FRKPLMUI,
+    NV_R_OHXNDKZO_F_DZRYQXUL,
+    NV_R_OHXNDKZO_F_NECPJIYP,
+    NV_R_OHXNDKZO_F_KZUAUTMT,
+    NV_R_OHXNDKZO_F_WZOVEWYN,
+    NV_R_OHXNDKZO_F_LXOBZGHC,
+    NV_R_OHXNDKZO_F_JMTEDEAN,
+    NV_R_OHXNDKZO_F_IRWGTEAR,
+    NV_R_OHXNDKZO_F_TMEABNQC,
+    NV_R_OHXNDKZO_F_LSGZLVHX,
+    NV_R_OHXNDKZO_F_SUNVVQKE,
+    NV_R_OHXNDKZO_F_MBAGPZXG,
+    NV_R_OHXNDKZO_F_ODQHEEUA,
+    NV_R_YOXQNARR,
+    NV_R_YOXQNARR_F_LXTYFTPY,
+    NV_R_YOXQNARR_F_YODTZACI,
+    NV_R_YOXQNARR_F_IPBTLEBX,
+    NV_R_YOXQNARR_F_YWUVNVTK,
+    NV_R_YOXQNARR_F_NCACRWHK,
+    NV_R_YOXQNARR_F_ULLZUFTO,
+    NV_R_YOXQNARR_F_HSWZNWQR,
+    NV_R_YOXQNARR_F_FFRPXOQA,
+    NV_R_YOXQNARR_F_RVNRIEFE,
+    NV_R_YOXQNARR_F_TNPNUXBZ,
+    NV_R_YOXQNARR_F_IDQORZEN,
+    NV_R_YOXQNARR_F_OTNGPIEK,
+    NV_R_YOXQNARR_F_AJKKMIVL,
+    NV_R_YOXQNARR_F_ZSIEXSHQ,
+    NV_R_YOXQNARR_F_ZXIDKDTW,
+    NV_R_YOXQNARR_F_OZYLDQNS,
+    NV_R_YOXQNARR_F_SIXDIVOL,
+    NV_R_YOXQNARR_F_PGICNWKE,
+    NV_R_YOXQNARR_F_HHFLQEOY,
+    NV_R_YOXQNARR_F_HBAAERYM,
+    NV_R_YOXQNARR_F_ZFHZLSEB,
+    NV_R_PUIWZUDC,
+    NV_R_PUIWZUDC_F_ABDPNLJW,
+    NV_R_PUIWZUDC_F_PUNKZFGK,
+    NV_R_PUIWZUDC_F_JVZQFAQN,
+    NV_R_PUIWZUDC_F_QHOZOTBM,
+    NV_R_PUIWZUDC_F_BNZSQIFR,
+    NV_R_PUIWZUDC_F_IIXBSFLJ,
+    NV_R_PUIWZUDC_F_JECPESUS,
+    NV_R_PUIWZUDC_F_NQKWXYLK,
+    NV_R_PUIWZUDC_F_IQXEFCSO,
+    NV_R_PUIWZUDC_F_DOBXZEQA,
+    NV_R_PUIWZUDC_F_QHGRCESR,
+    NV_R_PUIWZUDC_F_GATVWNSQ,
+    NV_R_PUIWZUDC_F_RGSZQKFJ,
+    NV_R_PUIWZUDC_F_NTMNQEWN,
+    NV_R_PUIWZUDC_F_YETFCUNI,
+    NV_R_PUIWZUDC_F_OBIEANLE,
+    NV_R_PUIWZUDC_F_CUDOINML,
+    NV_R_PUIWZUDC_F_OROZORRB,
+    NV_R_PUIWZUDC_F_OKKHJKPW,
+    NV_R_PUIWZUDC_F_GVXZSRPL,
+    NV_R_PUIWZUDC_F_MMQKCXTR,
+    NV_R_PUIWZUDC_F_WRYSRWEJ,
+    NV_R_PUIWZUDC_F_KYYBTZAH,
+    NV_R_PUIWZUDC_F_XPCNXEAU,
+    NV_R_PUIWZUDC_F_ZWFITLVA,
+    NV_R_PUIWZUDC_F_IFNOAULU,
+    NV_R_PUIWZUDC_F_PIGONQTN,
+    NV_R_PUIWZUDC_F_OOTEXLKV,
+    NV_R_PUIWZUDC_F_ZUHLCYRB,
+    NV_R_PUIWZUDC_F_CYWIKMPS,
+    NV_R_PUIWZUDC_F_ELFXKQIN,
+    NV_R_PUIWZUDC_F_FOYABZPO,
+    NV_R_ZDZLMUKR,
+    NV_R_ZDZLMUKR_F_DCVZTBVP,
+    NV_R_ZDZLMUKR_F_AUJEDMYV,
+    NV_R_ZDZLMUKR_F_UUEWJYVI,
+    NV_R_ZDZLMUKR_F_KWJRHKNK,
+    NV_R_ZDZLMUKR_F_OVGJUXAP,
+    NV_R_ZDZLMUKR_F_QEFSVZVO,
+    NV_R_ZDZLMUKR_F_PNETFVEN,
+    NV_R_ZDZLMUKR_F_LWZJDYQO,
+    NV_R_ZDZLMUKR_F_RDZVAOLK,
+    NV_R_ZDZLMUKR_F_IPPPPZYB,
+    NV_R_ZDZLMUKR_F_JFPYOBDJ,
+    NV_R_ZDZLMUKR_F_XDLVFQJA,
+    NV_R_ZDZLMUKR_F_WWHYFDME,
+    NV_R_ZDZLMUKR_F_POGKDWNN,
+    NV_R_ZDZLMUKR_F_DOMWSXLD,
+    NV_R_ZDZLMUKR_F_YMKBYMLD,
+    NV_R_ZDZLMUKR_F_ZBOPRKFF,
+    NV_R_ZDZLMUKR_F_BBBUJFFX,
+    NV_R_ZDZLMUKR_F_AMLTQEPJ,
+    NV_R_ZDZLMUKR_F_LVBXXZUC,
+    NV_R_ZDZLMUKR_F_SXSKGARG,
+    NV_R_ZDZLMUKR_F_IAIWHGLE,
+    NV_R_ZDZLMUKR_F_YZQMJXWQ,
+    NV_R_ZDZLMUKR_F_MQOMFOMP,
+    NV_R_ZDZLMUKR_F_KFQNQGDQ,
+    NV_R_ZDZLMUKR_F_HHCVCIBF,
+    NV_R_ZDZLMUKR_F_SWFAINTV,
+    NV_R_ZDZLMUKR_F_UMLOLDUM,
+    NV_R_ZDZLMUKR_F_NIQKJZPF,
+    NV_R_ZDZLMUKR_F_NVIYZGCJ,
+    NV_R_ZDZLMUKR_F_JBZKRMEW,
+    NV_R_ZDZLMUKR_F_PYTALWFF,
+    NV_R_ORJFNXKK,
+    NV_R_ORJFNXKK_F_EWUEIUFQ,
+    NV_R_ORJFNXKK_F_WGRGQHMN,
+    NV_R_ORJFNXKK_F_SVVREGFA,
+    NV_R_ORJFNXKK_F_TVLGAQTZ,
+    NV_R_ORJFNXKK_F_LIUBHIXK,
+    NV_R_ORJFNXKK_F_QESCWVQY,
+    NV_R_ORJFNXKK_F_MPOJZJWM,
+    NV_R_ORJFNXKK_F_BAHRFDET,
+    NV_R_ORJFNXKK_F_FLWYLUNH,
+    NV_R_ORJFNXKK_F_JCZNWMND,
+    NV_R_ORJFNXKK_F_XGWKBGKW,
+    NV_R_ORJFNXKK_F_WTKQRSYR,
+    NV_R_ORJFNXKK_F_PXWKJBYG,
+    NV_R_ORJFNXKK_F_JSTLQMMV,
+    NV_R_ORJFNXKK_F_GUSLARCD,
+    NV_R_ORJFNXKK_F_DFIFSJHJ,
+    NV_R_TMFXURCX,
+    NV_R_TMFXURCX_F_JQQOSHHN,
+    NV_R_TMFXURCX_F_BWRFYPXT,
+    NV_R_TMFXURCX_F_PNMVPTRO,
+    NV_R_TMFXURCX_F_MOSIXIQI,
+    NV_R_TMFXURCX_F_CZRWNPRU,
+    NV_R_TMFXURCX_F_HSTKOYXZ,
+    NV_R_TMFXURCX_F_BVAZDSRF,
+    NV_R_TMFXURCX_F_UJUJKZMP,
+    NV_R_TMFXURCX_F_YCXMAITD,
+    NV_R_TMFXURCX_F_HCKCTMKZ,
+    NV_R_TMFXURCX_F_PXKZCZYZ,
+    NV_R_TMFXURCX_F_HUXEYOBI,
+    NV_R_TMFXURCX_F_DHAGQGIE,
+    NV_R_TMFXURCX_F_TDNJIDOA,
+    NV_R_TMFXURCX_F_SDLGRUVO,
+    NV_R_TMFXURCX_F_GLQUMCOS,
+    NV_R_HEOFRDQP,
+    NV_R_HEOFRDQP_F_KOMXCILD,
+    NV_R_HEOFRDQP_F_SICZXNMB,
+    NV_R_HEOFRDQP_F_ZVDUDLOB,
+    NV_R_HEOFRDQP_F_WTFFCJMP,
+    NV_R_HEOFRDQP_F_STVAKCIY,
+    NV_R_HEOFRDQP_F_XTBNWBHI,
+    NV_R_HEOFRDQP_F_XWGFFAMR,
+    NV_R_HEOFRDQP_F_WGOBSKUW,
+    NV_R_HEOFRDQP_F_LUBIHGTB,
+    NV_R_HEOFRDQP_F_WOJMNMHM,
+    NV_R_HEOFRDQP_F_SNCVJRWG,
+    NV_R_HEOFRDQP_F_HSUAVBKV,
+    NV_R_HEOFRDQP_F_XJBOMWMI,
+    NV_R_HEOFRDQP_F_OUYHIHRM,
+    NV_R_HEOFRDQP_F_UBOLPNMU,
+    NV_R_HEOFRDQP_F_DZPQHVKZ,
+    NV_R_XVCZKKIN,
+    NV_R_XVCZKKIN_F_NXEYVFLY,
+    NV_R_XVCZKKIN_F_MXNEXENG,
+    NV_R_XVCZKKIN_F_CTKLZGNT,
+    NV_R_XVCZKKIN_F_WRVGEORD,
+    NV_R_XVCZKKIN_F_XCTMQXJT,
+    NV_R_XVCZKKIN_F_RQZEYYFI,
+    NV_R_XVCZKKIN_F_UODNCNNR,
+    NV_R_XVCZKKIN_F_DSLRASHZ,
+)
+
+# Registers identical to gh100
+from gpu.regs.gh100.hshub_int import (
+    NV_R_ARPDSYWJ,
+    NV_R_ARPDSYWJ_F_UIEBWIOP,
+    NV_R_ARPDSYWJ_F_FAEUEZAW,
+    NV_R_ARPDSYWJ_F_BYVHZPQX,
+    NV_R_ARPDSYWJ_F_OVHIEUWZ,
+    NV_R_ARPDSYWJ_F_RVUCMMQW,
+    NV_R_ARPDSYWJ_F_UBSXHLEI,
+    NV_R_ARPDSYWJ_F_QIAPVCZD,
+    NV_R_ARPDSYWJ_F_USAVQDXC,
+    NV_R_ARPDSYWJ_F_QOSJJLDM,
+    NV_R_ARPDSYWJ_F_BHUBJKFV,
+    NV_R_ARPDSYWJ_F_ABWDODUN,
+    NV_R_ARPDSYWJ_F_MHNEZFRQ,
+    NV_R_ARPDSYWJ_F_VYFBOXTE,
+    NV_R_ARPDSYWJ_F_MUQTRHDF,
+    NV_R_ARPDSYWJ_F_XOXIJWVV,
+    NV_R_ARPDSYWJ_F_LTGXRNQG,
+    NV_R_ARPDSYWJ_F_EFDTLHDG,
+    NV_R_ARPDSYWJ_F_TMQXZMBG,
+    NV_R_ARPDSYWJ_F_SJDTJBJN,
+    NV_R_ARPDSYWJ_F_PFFGLBNM,
+    NV_R_ARPDSYWJ_F_PLZQIACE,
+    NV_R_ARPDSYWJ_F_WIPYMAKE,
+    NV_R_ARPDSYWJ_F_ZKBAFHLI,
+    NV_R_ARPDSYWJ_F_XWFBCFRJ,
+    NV_R_ARPDSYWJ_F_TCLCZDDH,
+    NV_R_ARPDSYWJ_F_EKPVCEPD,
+    NV_R_ARPDSYWJ_F_DWPQFURP,
+    NV_R_ARPDSYWJ_F_BUPQWFXM,
+    NV_R_ARPDSYWJ_F_FRJXMXJQ,
+    NV_R_ARPDSYWJ_F_ORKXRJUG,
+    NV_R_ARPDSYWJ_F_YSWEGNLP,
+    NV_R_ARPDSYWJ_F_JEQVOZNZ,
+    NV_R_UKKYSIAF,
+    NV_R_UKKYSIAF_F_GHADRSVE,
+    NV_R_UKKYSIAF_F_VKZSMGDV,
+    NV_R_UKKYSIAF_F_RFNOQRKU,
+    NV_R_UKKYSIAF_F_MDFSQBEN,
+    NV_R_UKKYSIAF_F_BHJSHXVD,
+    NV_R_UKKYSIAF_F_WCWOZBSP,
+    NV_R_UKKYSIAF_F_FGONZWSR,
+    NV_R_UKKYSIAF_F_CYZESORM,
+    NV_R_UKKYSIAF_F_LGJGRYRP,
+    NV_R_UKKYSIAF_F_GDMIBLMG,
+    NV_R_UKKYSIAF_F_KSUINJNF,
+    NV_R_UKKYSIAF_F_XESRATBZ,
+    NV_R_UKKYSIAF_F_VNPLXLTZ,
+    NV_R_UKKYSIAF_F_GLRHQTMZ,
+    NV_R_UKKYSIAF_F_SCZMFHQZ,
+    NV_R_UKKYSIAF_F_UGYRKLJM,
+    NV_R_UKKYSIAF_F_HCNWPCOD,
+    NV_R_UKKYSIAF_F_USJEEPOD,
+    NV_R_UKKYSIAF_F_MBJACMOM,
+    NV_R_UKKYSIAF_F_WZBWTNQM,
+    NV_R_UKKYSIAF_F_MVLNUVFD,
+    NV_R_UKKYSIAF_F_ROWAGQRG,
+    NV_R_UKKYSIAF_F_XDTAJKAN,
+    NV_R_UKKYSIAF_F_DCQQYUYD,
+    NV_R_VHMXVILL,
+    NV_R_VHMXVILL_F_NHWQWYKB,
+    NV_R_VHMXVILL_F_JEOILTCQ,
+    NV_R_VHMXVILL_F_VCNJDYQL,
+    NV_R_VHMXVILL_F_ZZFUQOWD,
+    NV_R_VHMXVILL_F_BXZRWUSZ,
+    NV_R_VHMXVILL_F_JQYWCMFK,
+    NV_R_VHMXVILL_F_OLUWWATW,
+    NV_R_VHMXVILL_F_XSGCOOMD,
+    NV_R_VHMXVILL_F_IUUVKLNG,
+    NV_R_VHMXVILL_F_ZVJJIQUB,
+    NV_R_VHMXVILL_F_KOSYPJGT,
+    NV_R_VHMXVILL_F_ORBFRNVC,
+    NV_R_VHMXVILL_F_TJMANTCF,
+    NV_R_VHMXVILL_F_ZJRYUNWL,
+    NV_R_VHMXVILL_F_BGXRTXWK,
+    NV_R_VHMXVILL_F_ZIDYUYEN,
+    NV_R_VHMXVILL_F_XTLDZEWY,
+    NV_R_VHMXVILL_F_QCIHZJMY,
+    NV_R_VHMXVILL_F_PLUELXER,
+    NV_R_VHMXVILL_F_IRRZWHUK,
+    NV_R_VHMXVILL_F_QELVSHSQ,
+    NV_R_VHMXVILL_F_WXTBBGPW,
+    NV_R_VHMXVILL_F_HJCIHHCP,
+    NV_R_VHMXVILL_F_GINEOITN,
+    NV_R_JBKARAJO,
+    NV_R_JBKARAJO_F_EQLQFTGH,
+    NV_R_JBKARAJO_F_FKCQGEXL,
+    NV_R_JBKARAJO_F_JOHJYAWP,
+    NV_R_JBKARAJO_F_KBHOOAYF,
+    NV_R_JBKARAJO_F_ZPMGXEGS,
+    NV_R_JBKARAJO_F_YLQFUGYI,
+    NV_R_JBKARAJO_F_HSSCRQVH,
+    NV_R_JBKARAJO_F_QQNSDYPH,
+    NV_R_JBKARAJO_F_GHSJEOPH,
+    NV_R_JBKARAJO_F_HWPKKPOS,
+    NV_R_JBKARAJO_F_BZGIJGTC,
+    NV_R_JBKARAJO_F_PQYKPSKJ,
+    NV_R_JBKARAJO_F_HAYDREJP,
+    NV_R_JBKARAJO_F_YONASMHB,
+    NV_R_JBKARAJO_F_UHWMFIRQ,
+    NV_R_JBKARAJO_F_FRKPLMUI,
+    NV_R_JBKARAJO_F_VSIKVIVJ,
+    NV_R_JBKARAJO_F_GTNHTLPC,
+    NV_R_JBKARAJO_F_PHTDXUBN,
+    NV_R_JBKARAJO_F_DZRYQXUL,
+    NV_R_JBKARAJO_F_SDQIJEBM,
+    NV_R_JBKARAJO_F_WKNXUYEN,
+    NV_R_JBKARAJO_F_HSWSYGNF,
+    NV_R_JBKARAJO_F_NECPJIYP,
+    NV_R_JBKARAJO_F_AAQXITLF,
+    NV_R_JBKARAJO_F_PVTUWAZI,
+    NV_R_JBKARAJO_F_OTMSOGWT,
+    NV_R_JBKARAJO_F_KZUAUTMT,
+    NV_R_JBKARAJO_F_ZBZWDAGO,
+    NV_R_JBKARAJO_F_XGPRZMOL,
+    NV_R_JBKARAJO_F_RKVLBNOK,
+    NV_R_JBKARAJO_F_WZOVEWYN,
+    NV_R_TFXQVLAN,
+    NV_R_TFXQVLAN_F_BYVHZPQX,
+    NV_R_TFXQVLAN_F_UFBJNCSP,
+    NV_R_TFXQVLAN_F_QIAPVCZD,
+    NV_R_TFXQVLAN_F_KMAXVQYV,
+    NV_R_TFXQVLAN_F_ABWDODUN,
+    NV_R_TFXQVLAN_F_RLTCBIRF,
+    NV_R_TFXQVLAN_F_XOXIJWVV,
+    NV_R_TFXQVLAN_F_ZGNJYOPN,
+    NV_R_TFXQVLAN_F_SJDTJBJN,
+    NV_R_TFXQVLAN_F_TUJFZICR,
+    NV_R_TFXQVLAN_F_ZKBAFHLI,
+    NV_R_TFXQVLAN_F_GHJPEMCH,
+    NV_R_TFXQVLAN_F_DWPQFURP,
+    NV_R_TFXQVLAN_F_ORNINPVJ,
+    NV_R_TFXQVLAN_F_YSWEGNLP,
+    NV_R_TFXQVLAN_F_HWIDPMKJ,
+)
+
+# Register definitions
+NV_R_USHTVBFS = RegisterMetadata(
+    name='NV_R_USHTVBFS',
+    address=0x640,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_USHTVBFS_F_SLEIIBOU = FieldMetadata(
+    name='NV_R_USHTVBFS_F_SLEIIBOU',
+    msb=0,
+    lsb=0,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_RKAFJFOP = FieldMetadata(
+    name='NV_R_USHTVBFS_F_RKAFJFOP',
+    msb=16,
+    lsb=16,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_QKMUAVOQ = FieldMetadata(
+    name='NV_R_USHTVBFS_F_QKMUAVOQ',
+    msb=8,
+    lsb=8,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_RKLJOFIX = FieldMetadata(
+    name='NV_R_USHTVBFS_F_RKLJOFIX',
+    msb=1,
+    lsb=1,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_KAFYYCUA = FieldMetadata(
+    name='NV_R_USHTVBFS_F_KAFYYCUA',
+    msb=17,
+    lsb=17,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_THKEMYSL = FieldMetadata(
+    name='NV_R_USHTVBFS_F_THKEMYSL',
+    msb=9,
+    lsb=9,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_USPCMMKT = FieldMetadata(
+    name='NV_R_USHTVBFS_F_USPCMMKT',
+    msb=2,
+    lsb=2,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_EHOUPSWV = FieldMetadata(
+    name='NV_R_USHTVBFS_F_EHOUPSWV',
+    msb=18,
+    lsb=18,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_HNKJTLDT = FieldMetadata(
+    name='NV_R_USHTVBFS_F_HNKJTLDT',
+    msb=10,
+    lsb=10,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_LSVITFOC = FieldMetadata(
+    name='NV_R_USHTVBFS_F_LSVITFOC',
+    msb=3,
+    lsb=3,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_TYTDUCHH = FieldMetadata(
+    name='NV_R_USHTVBFS_F_TYTDUCHH',
+    msb=19,
+    lsb=19,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_JXKTHJOA = FieldMetadata(
+    name='NV_R_USHTVBFS_F_JXKTHJOA',
+    msb=11,
+    lsb=11,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_ATNKXMLT = FieldMetadata(
+    name='NV_R_USHTVBFS_F_ATNKXMLT',
+    msb=4,
+    lsb=4,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_YDPHLRTM = FieldMetadata(
+    name='NV_R_USHTVBFS_F_YDPHLRTM',
+    msb=20,
+    lsb=20,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_QIXBFBUF = FieldMetadata(
+    name='NV_R_USHTVBFS_F_QIXBFBUF',
+    msb=12,
+    lsb=12,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_AMYYRZDN = FieldMetadata(
+    name='NV_R_USHTVBFS_F_AMYYRZDN',
+    msb=5,
+    lsb=5,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_TYUZIMFA = FieldMetadata(
+    name='NV_R_USHTVBFS_F_TYUZIMFA',
+    msb=21,
+    lsb=21,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_ITRCCABI = FieldMetadata(
+    name='NV_R_USHTVBFS_F_ITRCCABI',
+    msb=13,
+    lsb=13,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_FBSMUEON = FieldMetadata(
+    name='NV_R_USHTVBFS_F_FBSMUEON',
+    msb=6,
+    lsb=6,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_SPNFDCZM = FieldMetadata(
+    name='NV_R_USHTVBFS_F_SPNFDCZM',
+    msb=22,
+    lsb=22,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_DRXXULAJ = FieldMetadata(
+    name='NV_R_USHTVBFS_F_DRXXULAJ',
+    msb=14,
+    lsb=14,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_YGBPPKMV = FieldMetadata(
+    name='NV_R_USHTVBFS_F_YGBPPKMV',
+    msb=27,
+    lsb=27,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_XQRTWKOK = FieldMetadata(
+    name='NV_R_USHTVBFS_F_XQRTWKOK',
+    msb=26,
+    lsb=26,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_BEMIDIOQ = FieldMetadata(
+    name='NV_R_USHTVBFS_F_BEMIDIOQ',
+    msb=24,
+    lsb=24,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_USHTVBFS_F_GLIHOFBT = FieldMetadata(
+    name='NV_R_USHTVBFS_F_GLIHOFBT',
+    msb=25,
+    lsb=25,
+    register=NV_R_USHTVBFS
+)
+
+NV_R_CJIRIAAV = RegisterMetadata(
+    name='NV_R_CJIRIAAV',
+    address=0x61c,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_CJIRIAAV_F_FDJGTZTF = FieldMetadata(
+    name='NV_R_CJIRIAAV_F_FDJGTZTF',
+    msb=31,
+    lsb=0,
+    register=NV_R_CJIRIAAV
+)
+
+NV_R_ETZZJOQG = RegisterMetadata(
+    name='NV_R_ETZZJOQG',
+    address=0x1ac,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_ETZZJOQG_F_CXEEAICP = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_CXEEAICP',
+    msb=8,
+    lsb=8,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_UDQJPFVT = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_UDQJPFVT',
+    msb=17,
+    lsb=17,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_CEJVDJOX = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_CEJVDJOX',
+    msb=9,
+    lsb=9,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_NGPSNCWL = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_NGPSNCWL',
+    msb=18,
+    lsb=18,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_ZBAJVGWI = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_ZBAJVGWI',
+    msb=10,
+    lsb=10,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_GXPQKYBO = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_GXPQKYBO',
+    msb=19,
+    lsb=19,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_RJPDPMUF = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_RJPDPMUF',
+    msb=11,
+    lsb=11,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_NSEWASIT = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_NSEWASIT',
+    msb=20,
+    lsb=20,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_ULSVLGBK = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_ULSVLGBK',
+    msb=12,
+    lsb=12,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_XJUQYTOQ = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_XJUQYTOQ',
+    msb=21,
+    lsb=21,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_CUCRWJAI = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_CUCRWJAI',
+    msb=13,
+    lsb=13,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_NKUZYUQG = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_NKUZYUQG',
+    msb=22,
+    lsb=22,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_SSEPMUCC = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_SSEPMUCC',
+    msb=14,
+    lsb=14,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_GEDGITBD = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_GEDGITBD',
+    msb=23,
+    lsb=23,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_AHVSIKMY = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_AHVSIKMY',
+    msb=15,
+    lsb=15,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_HIODGFOA = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_HIODGFOA',
+    msb=24,
+    lsb=24,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_ZAZEKMGP = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_ZAZEKMGP',
+    msb=16,
+    lsb=16,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_ETZZJOQG_F_AVQNBKON = FieldMetadata(
+    name='NV_R_ETZZJOQG_F_AVQNBKON',
+    msb=25,
+    lsb=25,
+    register=NV_R_ETZZJOQG
+)
+
+NV_R_VHJZHKLK = RegisterMetadata(
+    name='NV_R_VHJZHKLK',
+    address=0x1b0,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_VHJZHKLK_F_NNFCGTYP = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_NNFCGTYP',
+    msb=18,
+    lsb=18,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_TRFBQKUD = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_TRFBQKUD',
+    msb=0,
+    lsb=0,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_DHJTXMCU = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_DHJTXMCU',
+    msb=9,
+    lsb=9,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_SQTOOUAI = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_SQTOOUAI',
+    msb=19,
+    lsb=19,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_BXHUMUQN = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_BXHUMUQN',
+    msb=1,
+    lsb=1,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_SXOSCRCN = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_SXOSCRCN',
+    msb=10,
+    lsb=10,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_NYBSYXIM = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_NYBSYXIM',
+    msb=20,
+    lsb=20,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_NCLKHMPI = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_NCLKHMPI',
+    msb=2,
+    lsb=2,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_CUMBFKMJ = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_CUMBFKMJ',
+    msb=11,
+    lsb=11,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_QYOXNJZP = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_QYOXNJZP',
+    msb=21,
+    lsb=21,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_RJPSEBRK = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_RJPSEBRK',
+    msb=3,
+    lsb=3,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_NEKYEWMZ = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_NEKYEWMZ',
+    msb=12,
+    lsb=12,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_ZHZYTJOF = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_ZHZYTJOF',
+    msb=22,
+    lsb=22,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_EYLHPQDX = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_EYLHPQDX',
+    msb=4,
+    lsb=4,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_OHUKQOFX = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_OHUKQOFX',
+    msb=13,
+    lsb=13,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_HUYKHIAQ = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_HUYKHIAQ',
+    msb=23,
+    lsb=23,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_HZZTMIST = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_HZZTMIST',
+    msb=5,
+    lsb=5,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_QJDGDJIH = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_QJDGDJIH',
+    msb=14,
+    lsb=14,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_CKVFCUZC = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_CKVFCUZC',
+    msb=24,
+    lsb=24,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_RHPFJQXO = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_RHPFJQXO',
+    msb=6,
+    lsb=6,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_BOLDFQEJ = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_BOLDFQEJ',
+    msb=15,
+    lsb=15,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_TBDQCOJB = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_TBDQCOJB',
+    msb=25,
+    lsb=25,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_PFXMWPYC = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_PFXMWPYC',
+    msb=7,
+    lsb=7,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_MJRJKUYD = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_MJRJKUYD',
+    msb=16,
+    lsb=16,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_YBXCFLIJ = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_YBXCFLIJ',
+    msb=26,
+    lsb=26,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_NMUZOCBY = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_NMUZOCBY',
+    msb=8,
+    lsb=8,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_VHJZHKLK_F_JBFBNWOP = FieldMetadata(
+    name='NV_R_VHJZHKLK_F_JBFBNWOP',
+    msb=17,
+    lsb=17,
+    register=NV_R_VHJZHKLK
+)
+
+NV_R_EKZEQLYT = RegisterMetadata(
+    name='NV_R_EKZEQLYT',
+    address=0x194,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_EKZEQLYT_F_FDJGTZTF = FieldMetadata(
+    name='NV_R_EKZEQLYT_F_FDJGTZTF',
+    msb=31,
+    lsb=0,
+    register=NV_R_EKZEQLYT
+)
+
+NV_R_GIYEYJDF = RegisterMetadata(
+    name='NV_R_GIYEYJDF',
+    address=0xa7c,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_GIYEYJDF_F_FTRTNUVX = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_FTRTNUVX',
+    msb=0,
+    lsb=0,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_QLLFJRSD = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_QLLFJRSD',
+    msb=9,
+    lsb=9,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_RTOEXJZB = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_RTOEXJZB',
+    msb=18,
+    lsb=18,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_WOJYUHZQ = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_WOJYUHZQ',
+    msb=1,
+    lsb=1,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_DEIWFIXK = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_DEIWFIXK',
+    msb=10,
+    lsb=10,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_IOCHURJF = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_IOCHURJF',
+    msb=19,
+    lsb=19,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_VAIRXJAY = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_VAIRXJAY',
+    msb=2,
+    lsb=2,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_RSEPHDRQ = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_RSEPHDRQ',
+    msb=11,
+    lsb=11,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_PVPIYWOY = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_PVPIYWOY',
+    msb=20,
+    lsb=20,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_MYBLZEWY = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_MYBLZEWY',
+    msb=3,
+    lsb=3,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_OMFFCENF = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_OMFFCENF',
+    msb=12,
+    lsb=12,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_TCGCOFJE = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_TCGCOFJE',
+    msb=21,
+    lsb=21,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_WXFBSLUS = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_WXFBSLUS',
+    msb=4,
+    lsb=4,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_VZHCHNXF = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_VZHCHNXF',
+    msb=13,
+    lsb=13,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_MOSLRSDR = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_MOSLRSDR',
+    msb=22,
+    lsb=22,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_DIQKXZEF = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_DIQKXZEF',
+    msb=5,
+    lsb=5,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_JYNILTFR = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_JYNILTFR',
+    msb=14,
+    lsb=14,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_NCTKVOJU = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_NCTKVOJU',
+    msb=23,
+    lsb=23,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_EDAVJBRP = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_EDAVJBRP',
+    msb=6,
+    lsb=6,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_DEOVKEPM = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_DEOVKEPM',
+    msb=15,
+    lsb=15,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_FNRQIERX = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_FNRQIERX',
+    msb=24,
+    lsb=24,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_PQLBPFOS = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_PQLBPFOS',
+    msb=7,
+    lsb=7,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_MQLQDENW = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_MQLQDENW',
+    msb=16,
+    lsb=16,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_XZAQNQIK = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_XZAQNQIK',
+    msb=25,
+    lsb=25,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_VKZWLODQ = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_VKZWLODQ',
+    msb=8,
+    lsb=8,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_HWAVFMYR = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_HWAVFMYR',
+    msb=17,
+    lsb=17,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_GIYEYJDF_F_LOOGMWMV = FieldMetadata(
+    name='NV_R_GIYEYJDF_F_LOOGMWMV',
+    msb=26,
+    lsb=26,
+    register=NV_R_GIYEYJDF
+)
+
+NV_R_HWOKKDZD = RegisterMetadata(
+    name='NV_R_HWOKKDZD',
+    address=0xaac,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_HWOKKDZD_F_PJYTITAN = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_PJYTITAN',
+    msb=0,
+    lsb=0,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_LMFMKWRX = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_LMFMKWRX',
+    msb=8,
+    lsb=8,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_BAKAJDCC = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_BAKAJDCC',
+    msb=16,
+    lsb=16,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_LEVXHOJH = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_LEVXHOJH',
+    msb=24,
+    lsb=24,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_HCSCGKDD = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_HCSCGKDD',
+    msb=1,
+    lsb=1,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_CBWTNIZW = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_CBWTNIZW',
+    msb=9,
+    lsb=9,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_IZGNXPZJ = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_IZGNXPZJ',
+    msb=17,
+    lsb=17,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_ZQMEBVKO = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_ZQMEBVKO',
+    msb=25,
+    lsb=25,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_XWIHQYKN = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_XWIHQYKN',
+    msb=2,
+    lsb=2,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_GNSXJJRO = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_GNSXJJRO',
+    msb=10,
+    lsb=10,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_YDPMNNRE = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_YDPMNNRE',
+    msb=18,
+    lsb=18,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_FIQYHJMC = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_FIQYHJMC',
+    msb=26,
+    lsb=26,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_SGSWPLGM = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_SGSWPLGM',
+    msb=3,
+    lsb=3,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_ZCTMFSXT = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_ZCTMFSXT',
+    msb=11,
+    lsb=11,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_OEXKMTUO = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_OEXKMTUO',
+    msb=19,
+    lsb=19,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_XVDJXKCI = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_XVDJXKCI',
+    msb=27,
+    lsb=27,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_LRIUPTON = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_LRIUPTON',
+    msb=4,
+    lsb=4,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_BUDJVJJJ = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_BUDJVJJJ',
+    msb=12,
+    lsb=12,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_ZAUGWHQH = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_ZAUGWHQH',
+    msb=20,
+    lsb=20,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_JURCSWKV = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_JURCSWKV',
+    msb=28,
+    lsb=28,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_TGVCNHCI = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_TGVCNHCI',
+    msb=5,
+    lsb=5,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_IQJMXAGN = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_IQJMXAGN',
+    msb=13,
+    lsb=13,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_UDMTBNFX = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_UDMTBNFX',
+    msb=21,
+    lsb=21,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_FIMBFKKW = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_FIMBFKKW',
+    msb=29,
+    lsb=29,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_OCXGWGGD = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_OCXGWGGD',
+    msb=6,
+    lsb=6,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_CSYOLLTA = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_CSYOLLTA',
+    msb=14,
+    lsb=14,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_NKIHJXED = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_NKIHJXED',
+    msb=22,
+    lsb=22,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_XHIYCOMD = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_XHIYCOMD',
+    msb=30,
+    lsb=30,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_BZQPZSPV = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_BZQPZSPV',
+    msb=7,
+    lsb=7,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_PYFGVXYP = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_PYFGVXYP',
+    msb=15,
+    lsb=15,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_EJFBTIGK = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_EJFBTIGK',
+    msb=23,
+    lsb=23,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_HWOKKDZD_F_VCZIDXGU = FieldMetadata(
+    name='NV_R_HWOKKDZD_F_VCZIDXGU',
+    msb=31,
+    lsb=31,
+    register=NV_R_HWOKKDZD
+)
+
+NV_R_XHXCTOYJ = RegisterMetadata(
+    name='NV_R_XHXCTOYJ',
+    address=0xab0,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_XHXCTOYJ_F_FJJNHLRY = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_FJJNHLRY',
+    msb=0,
+    lsb=0,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_RXAICDVF = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_RXAICDVF',
+    msb=8,
+    lsb=8,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_ERZKFGZN = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_ERZKFGZN',
+    msb=16,
+    lsb=16,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_HJPYLKJY = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_HJPYLKJY',
+    msb=24,
+    lsb=24,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_RAFZDTSU = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_RAFZDTSU',
+    msb=1,
+    lsb=1,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_EHLLNKIT = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_EHLLNKIT',
+    msb=9,
+    lsb=9,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_DDUAKNBX = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_DDUAKNBX',
+    msb=17,
+    lsb=17,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_BSOWCNUW = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_BSOWCNUW',
+    msb=25,
+    lsb=25,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_NCQPIVHI = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_NCQPIVHI',
+    msb=2,
+    lsb=2,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_VDBBMSEP = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_VDBBMSEP',
+    msb=10,
+    lsb=10,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_RFHLAUCO = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_RFHLAUCO',
+    msb=18,
+    lsb=18,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_JHMVXOOF = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_JHMVXOOF',
+    msb=26,
+    lsb=26,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_DYYWEKOV = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_DYYWEKOV',
+    msb=3,
+    lsb=3,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_EFXUZPXM = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_EFXUZPXM',
+    msb=11,
+    lsb=11,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_RVWPBQBR = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_RVWPBQBR',
+    msb=19,
+    lsb=19,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_HFFQBTJQ = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_HFFQBTJQ',
+    msb=27,
+    lsb=27,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_KZRWUPDG = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_KZRWUPDG',
+    msb=4,
+    lsb=4,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_OXHQBJKT = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_OXHQBJKT',
+    msb=12,
+    lsb=12,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_DCOFEFSE = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_DCOFEFSE',
+    msb=20,
+    lsb=20,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_CMIYESAQ = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_CMIYESAQ',
+    msb=28,
+    lsb=28,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_VZXJWJWZ = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_VZXJWJWZ',
+    msb=5,
+    lsb=5,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_UCRNRKEG = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_UCRNRKEG',
+    msb=13,
+    lsb=13,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_ZLUHPDKV = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_ZLUHPDKV',
+    msb=21,
+    lsb=21,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_QBSHPMYB = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_QBSHPMYB',
+    msb=29,
+    lsb=29,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_NPHZMSMR = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_NPHZMSMR',
+    msb=6,
+    lsb=6,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_JMIGOXPP = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_JMIGOXPP',
+    msb=14,
+    lsb=14,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_QWEJTUHI = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_QWEJTUHI',
+    msb=22,
+    lsb=22,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_HWGOOPVR = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_HWGOOPVR',
+    msb=30,
+    lsb=30,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_VFGODGYA = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_VFGODGYA',
+    msb=7,
+    lsb=7,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_FFOMSUWS = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_FFOMSUWS',
+    msb=15,
+    lsb=15,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_CYGYSHUE = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_CYGYSHUE',
+    msb=23,
+    lsb=23,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XHXCTOYJ_F_OLHLXZKY = FieldMetadata(
+    name='NV_R_XHXCTOYJ_F_OLHLXZKY',
+    msb=31,
+    lsb=31,
+    register=NV_R_XHXCTOYJ
+)
+
+NV_R_XCAMJNJD = RegisterMetadata(
+    name='NV_R_XCAMJNJD',
+    address=0xa1c,
+    zero_based=True,
+    debug_dump={'tags': ['error'], 'interesting': {'rule': 'nonzero', 'reason': 'error status nonzero'}}
+)
+
+NV_R_XCAMJNJD_F_FDJGTZTF = FieldMetadata(
+    name='NV_R_XCAMJNJD_F_FDJGTZTF',
+    msb=31,
+    lsb=0,
+    register=NV_R_XCAMJNJD
+)
+

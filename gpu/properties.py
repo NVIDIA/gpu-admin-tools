@@ -72,6 +72,8 @@ class GpuProperties:
         name = properties["name"]
         if name is None and chip is not None:
             name = "Generic-" + chip.upper()
+        if name == "Generic-GR100" and "is_sxm" in properties["flags"]:
+            name = "VR" if "has_c2c" in properties["flags"] else "R100"
         return {"name": name, "arch": arch, "chip": chip}
 
     @staticmethod

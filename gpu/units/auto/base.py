@@ -33,6 +33,9 @@ class GpuTopAuto(GpuUnitAutoBase):
         if not device.is_gpu() or not device.is_hopper_plus:
             return None
 
+        if device.is_rubin_plus:
+            from gpu.units.top_rubin import GpuTopRubin
+            return GpuTopRubin(device)
 
         from gpu.units.top import GpuTopHopper
         return GpuTopHopper(device)
@@ -49,6 +52,9 @@ class NvlinkAuto(GpuUnitAutoBase):
                 return LagunaNvlink(device)
             return None
 
+        if device.is_rubin_plus:
+            from gpu.units.nvlink_rubin import RubinNvlink
+            return RubinNvlink(device)
 
         if device.is_blackwell_plus:
             from gpu.units.nvlink_blackwell import BlackwellNvlink
@@ -163,6 +169,8 @@ class XtlAuto(GpuUnitAutoBase):
     def create_instance(cls, device):
         if not device.is_gpu() or not device.is_hopper_plus:
             return None
+        if device.is_rubin_plus:
+            return None
         from gpu.units.bus import Xtl
         return Xtl(device)
 
@@ -177,6 +185,9 @@ class PxucAuto(GpuUnitAutoBase):
         if not device.is_gpu():
             return None
         if device.is_blackwell and not device.is_blackwell_2xx:
+            from gpu.units.bus import Pxuc
+            return Pxuc(device)
+        if device.is_rubin_plus:
             from gpu.units.bus import Pxuc
             return Pxuc(device)
         return None

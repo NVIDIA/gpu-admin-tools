@@ -46,7 +46,7 @@ if hasattr(time, "perf_counter"):
 else:
     perf_counter = time.time
 
-GPU_ARCHES = ["unknown", "kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper", "blackwell"]
+GPU_ARCHES = ["unknown", "kepler", "maxwell", "pascal", "volta", "turing", "ampere", "ada", "hopper", "blackwell", "rubin"]
 NVSWITCH_MAP = {
     0x6000a1: {
         "name": "LR10",
@@ -1516,6 +1516,10 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         link_stride = 0x40000
         llu_offset = 0x10000
         plu_offset = 0x18000
+        if self.is_rubin:
+            link_stride = 0x10000
+            llu_offset = 0
+            plu_offset = 0x8000
 
         llu_offsets = [
             ("port_state", 0x4004),
@@ -1524,6 +1528,10 @@ class NvidiaDevice(PciDevice, NvidiaDeviceInternal):
         if self.is_blackwell:
             plu_offsets += [
                 ("linkup_state", 0x50dc),
+            ]
+        elif self.is_rubin:
+            plu_offsets += [
+                ("linkup_state", 0x5194),
             ]
 
         offsets = [(f"llu {name}", llu_offset + offset) for name, offset in llu_offsets]
@@ -3524,6 +3532,12 @@ class Gpu(NvidiaDevice):
             # Enabling CC is not supported on GH and GB
             self.is_cc_enable_supported = False
 
+        if self.is_rubin_plus:
+            if self.name == "Generic-GR100":
+                if self.is_sxm and self.has_c2c:
+                    self.name = "VR"
+                elif self.is_sxm:
+                    self.name = "R100"
 
         self._save_cfg_space()
         self.init_priv_ring()
@@ -3705,6 +3719,17 @@ class Gpu(NvidiaDevice):
             return True
         return self.is_blackwell_2xx
 
+    @property
+    def is_rubin(self):
+        return GPU_ARCHES.index(self.arch) == GPU_ARCHES.index("rubin")
+
+    @property
+    def is_rubin_plus(self):
+        return GPU_ARCHES.index(self.arch) >= GPU_ARCHES.index("rubin")
+
+    @property
+    def is_rubin_1xx(self):
+        return self.is_rubin and self.chip.startswith("gr1")
 
     @property
     def has_fsp(self):
