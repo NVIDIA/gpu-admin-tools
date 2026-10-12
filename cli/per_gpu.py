@@ -104,7 +104,10 @@ def gpu_dma_test(gpu, verify_reads=True, verify_writes=True):
                 info("Cannot allocate any more memory")
                 return
             info("Failed to allocate %d bytes, retrying with half the size", chunk_size)
-            chunk_size /= 2
+            # Floor division: true division made chunk_size a float, and
+            # mmap.mmap rejects a float, so every later attempt failed on the
+            # type instead of on memory and the retry never allocated again.
+            chunk_size //= 2
             continue
 
         # Hold onto the memory so that it cannot be allocated again
